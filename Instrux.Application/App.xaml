@@ -1,0 +1,181 @@
+﻿<Application x:Class="Instrux.Application.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Instrux.Application"
+             xmlns:converters="clr-namespace:Instrux.Application.Converters"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:viewModels="clr-namespace:Instrux.Application.ViewModels"
+             xmlns:views="clr-namespace:Instrux.Application.Views">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <materialDesign:BundledTheme BaseTheme="Light" PrimaryColor="Blue" SecondaryColor="Teal" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:StringToBrushConverter x:Key="StringToBrushConverter" />
+            <converters:PriorityToBrushConverter x:Key="PriorityToBrushConverter" />
+            <converters:AttendanceStatusToBrushConverter x:Key="AttendanceStatusToBrushConverter" />
+            <converters:EventCategoryToBrushConverter x:Key="EventCategoryToBrushConverter" />
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+
+            <!-- Primary Blue -->
+            <SolidColorBrush x:Key="PrimaryDark" Color="#2C5EAD" />
+            <SolidColorBrush x:Key="PrimaryMid" Color="#1591DC" />
+            <SolidColorBrush x:Key="PrimaryLight" Color="#4BB8FA" />
+            <SolidColorBrush x:Key="PrimarySoft" Color="#C4E2F5" />
+
+            <!-- Secondary Teal -->
+            <SolidColorBrush x:Key="SecondaryDark" Color="#005461" />
+            <SolidColorBrush x:Key="SecondaryMid" Color="#0C7779" />
+            <SolidColorBrush x:Key="SecondaryLight" Color="#249E94" />
+            <SolidColorBrush x:Key="SecondaryPale" Color="#3BC1A8" />
+
+            <!-- Danger -->
+            <SolidColorBrush x:Key="DangerBrush" Color="#D32F2F" />
+            <SolidColorBrush x:Key="DangerSoft" Color="#FFE4E4" />
+
+            <!-- Neutral -->
+            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#F6F8FC" />
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="SurfaceMutedBrush" Color="#EDF1F7" />
+            <SolidColorBrush x:Key="InkBrush" Color="#1A1C1E" />
+            <SolidColorBrush x:Key="MutedInkBrush" Color="#5F6368" />
+            <SolidColorBrush x:Key="LineBrush" Color="#DCE3ED" />
+            <SolidColorBrush x:Key="AccentSoftBrush" Color="#C4E2F5" />
+
+            <DataTemplate DataType="{x:Type viewModels:DashboardViewModel}">
+                <views:DashboardView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewModels:ClassesViewModel}">
+                <views:ClassesView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewModels:CalendarViewModel}">
+                <views:CalendarView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewModels:TodoViewModel}">
+                <views:TodoView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type viewModels:SettingsViewModel}">
+                <views:SettingsView />
+            </DataTemplate>
+
+            <Style TargetType="Window">
+                <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI" />
+                <Setter Property="TextElement.Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+
+            <Style x:Key="PageTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="34" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+
+            <Style x:Key="SectionTitle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+
+            <Style x:Key="CaptionText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Foreground" Value="{StaticResource MutedInkBrush}" />
+            </Style>
+
+            <Style x:Key="Card" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+                <Setter Property="CornerRadius" Value="24" />
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="22" />
+                <Setter Property="Margin" Value="0,0,16,16" />
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="20" Direction="270" Opacity="0.05" ShadowDepth="8" />
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="PrimaryButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource PrimaryMid}" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="18,10" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="SoftButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                <Setter Property="Background" Value="{StaticResource SurfaceMutedBrush}" />
+                <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            </Style>
+
+            <Style x:Key="InputBox" TargetType="TextBox">
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="White" />
+                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="14"
+                                    Padding="{TemplateBinding Padding}">
+                                <ScrollViewer x:Name="PART_ContentHost" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryMid}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.62" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="PasswordInputBox" TargetType="PasswordBox">
+                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Background" Value="White" />
+                <Setter Property="Padding" Value="14,10" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="PasswordBox">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="14"
+                                    Padding="{TemplateBinding Padding}">
+                                <ScrollViewer x:Name="PART_ContentHost" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryMid}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.62" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

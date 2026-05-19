@@ -1,0 +1,19 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="handGradient" x1="40" y1="40" x2="220" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#4FD1C5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Waving lines -->
+  <path d="M180 52C192 44 206 44 218 54" stroke="#7C3AED" stroke-width="10" stroke-linecap="round"/>
+  <path d="M188 76C200 68 214 68 226 78" stroke="#A78BFA" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Hand -->
+  <path d="M90 210C68 198 56 176 56 152V112C56 102 64 94 74 94C84 94 92 102 92 112V64C92 52 100 44 112 44C124 44 132 52 132 64V120V52C132 40 140 32 152 32C164 32 172 40 172 52V128V68C172 56 180 48 192 48C204 48 212 56 212 68V140C212 182 190 212 148 224C126 230 106 224 90 210Z"
+        fill="url(#handGradient)"/>
+
+  <!-- Palm detail -->
+  <path d="M110 178C122 188 138 190 154 184" stroke="white" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
+</svg>

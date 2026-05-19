@@ -1,0 +1,147 @@
+<UserControl x:Class="Instrux.Application.Views.TodoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+             mc:Ignorable="d"
+             d:DesignHeight="720" d:DesignWidth="960">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="170" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Task title" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" FontSize="18" ToolTip="Example: Check quiz papers" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="12,0">
+                        <TextBlock Text="Priority" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                        <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Padding="10" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                        <TextBlock Text="Due date" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                        <DatePicker SelectedDate="{Binding NewTaskDueDate}" />
+                    </StackPanel>
+                    <Button Grid.Column="3" Style="{StaticResource PrimaryButton}" Command="{Binding AddTaskCommand}" Margin="0,18,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <svgc:SvgViewbox Source="/Resources/plus.svg" Width="16" Height="16" Margin="0,0,8,0" />
+                            <TextBlock Text="Add task" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                <StackPanel>
+                    <TextBlock Text="Search tasks" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding TodoSearch, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search by task title" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,18">
+                <StackPanel Orientation="Horizontal">
+                    <ItemsControl ItemsSource="{Binding Filters}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding}" Command="{Binding DataContext.SetFilterCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="0,0,8,0" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource Card}" Grid.Column="0" Visibility="{Binding TodayVisibility}">
+                    <StackPanel>
+                        <TextBlock Text="Today" Style="{StaticResource SectionTitle}" />
+                        <ItemsControl ItemsSource="{Binding Today}" Margin="0,14,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12">
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Background="{Binding Priority, Converter={StaticResource PriorityToBrushConverter}}" Width="7" CornerRadius="5" Margin="0,0,10,0" />
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Content="Done" Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                                <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding Priority}" Style="{StaticResource CaptionText}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Grid.Column="1" Visibility="{Binding UpcomingVisibility}">
+                    <StackPanel>
+                        <TextBlock Text="Upcoming" Style="{StaticResource SectionTitle}" />
+                        <ItemsControl ItemsSource="{Binding Upcoming}" Margin="0,14,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12">
+                                        <DockPanel>
+                                            <Border DockPanel.Dock="Left" Background="{Binding Priority, Converter={StaticResource PriorityToBrushConverter}}" Width="7" CornerRadius="5" Margin="0,0,10,0" />
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Content="Done" Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                                <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{Binding DueDate, StringFormat={}{0:MMM d}}" Style="{StaticResource CaptionText}" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Grid.Column="2" Margin="0,0,0,16" Visibility="{Binding CompletedVisibility}">
+                    <StackPanel>
+                        <TextBlock Text="Completed" Style="{StaticResource SectionTitle}" />
+                        <ItemsControl ItemsSource="{Binding Completed}" Margin="0,14,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12">
+                                        <DockPanel>
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                <Button Content="Restore" Command="{Binding DataContext.ToggleTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                                <Button Content="Delete" Command="{Binding DataContext.DeleteTaskCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource SoftButton}" Margin="8,0,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <svgc:SvgViewbox Source="/Resources/square-check-big.svg" Width="18" Height="18" Margin="0,0,10,0" />
+                                                <TextBlock Text="{Binding Title}" Foreground="{StaticResource MutedInkBrush}" TextDecorations="Strikethrough" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
