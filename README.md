@@ -201,7 +201,7 @@ The following design patterns were explicitly chosen to solve specific architect
 │  IContentService         ←── ContentService             │
 │                                                          │
 │  All implement: sealed class                             │
-│  All inject: InstruxDbContext                            │
+│  All inject: IRepository                                 │
 │  All registered as: Singleton                            │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -248,6 +248,7 @@ ViewModelBase (abstract)
 ```
 Host.CreateDefaultBuilder()
   └── services.AddSingleton<InstruxDbContext>()
+  └── services.AddSingleton<IRepository, Repository>()
   └── services.AddSingleton<IAuthenticationService, AuthenticationService>()
   └── services.AddSingleton<IClassService, ClassService>()
   └── services.AddSingleton<IStudentService, StudentService>()
@@ -495,13 +496,166 @@ This is a WPF desktop application — no REST or web APIs. The service contract 
 | `ITodoService` | `GetAllAsync`, `CreateAsync`, `ToggleAsync`, `DeleteAsync` | To-Do items |
 | `IContentService` | `GetAllAsync`, `CreateAsync`, `DeleteAsync` | Class content/files |
 
-All services follow the same pattern: injected with `InstruxDbContext`, use `DtoMapper` for DTO↔entity conversion, and are registered as singletons in DI.
+All services follow the same pattern: injected with `IRepository` (abstraction over `InstruxDbContext`), use `DtoMapper` for DTO↔entity conversion, and are registered as singletons in DI.
 
 ### Challenges
 
 - **LocalDB file locking** — During active development, the running WPF process holds a lock on the database DLLs, requiring `taskkill` before every rebuild.
 - **SVG migration** — SharpVectors.Wpf's `SvgViewbox` lacks direct `BitmapImage` resource support; every `<Image>` referencing the logo resource had to be manually swapped to a hardcoded SVG path.
 - **Plaintext passwords** — `AuthenticationService.cs` stores and compares passwords as raw strings with no hashing, a known security gap deferred for later.
+
+---
+
+## Input Validation
+
+### MaxLength Constraints
+
+UI-side limits applied via `MaxLength` on 19 text input fields across 5 views:
+
+| View | Field | MaxLength |
+|---|---|---|
+| AuthenticationView | FullName | 100 |
+| AuthenticationView | Nickname | 50 |
+| AuthenticationView | Email | 254 |
+| AuthenticationView | Password | 128 |
+| ClassesView | NewClassName | 100 |
+| ClassesView | NewClassSection | 50 |
+| ClassesView | ClassSearch | 100 |
+| ClassesView | NewStudentName | 100 |
+| ClassesView | NewAssessmentName | 200 |
+| ClassesView | NewAssessmentMaxScore | 6 |
+| ClassesView | GradeCellValue | 6 |
+| CalendarView | NewEventTitle | 200 |
+| CalendarView | StartTimeText | 5 |
+| CalendarView | EventNotes | 500 |
+| TodoView | NewTaskTitle | 200 |
+| TodoView | TodoSearch | 100 |
+| SettingsView | FullName | 100 |
+| SettingsView | Nickname | 50 |
+| SettingsView | Email | 254 |
+
+Database-side limits defined via EF Core fluent configuration on 29 entity properties. Notable mismatches where UI allows more than the DB column:
+
+- `Teacher.Email`: UI=254, DB=180
+- `Assessment.Name`: UI=200, DB=140
+
+### Tooltips
+
+22 tooltips across 4 views guide user input. Examples: `"Example: Grade 8 Mathematics"` (NewClassName), `"HH:mm format"` (StartTimeText), `"At least 6 characters"` (Password). SettingsView has no tooltips.
+
+### InputScope
+
+2 fields set `InputScope="Number"` — `NewAssessmentMaxScore` and grade cell value — restricting the touch/on-screen keyboard to numeric input on Windows.
+
+### Regex Validation
+
+| Pattern | Location | Purpose |
+|---|---|---|
+| `^[^@\s]+@[^@\s]+\.[^@\s]+$` | `AuthenticationViewModel.cs:20-21` | Email format check on submit |
+| `^([01]\d\|2[0-3]):[0-5]\d$` | `CalendarViewModel.cs:124` | 24-hour HH:mm time format check |
+
+### Numeric Clamping
+
+| Rule | Location | Range |
+|---|---|---|
+| `NewAssessmentMaxScore` | `ClassesViewModel.cs:183` | Clamped to 1–1000 |
+| Grade cell score | `ClassesViewModel.cs:497` | Clamped to 0–current assessment `MaxScore` |
+
+### Password Minimum
+
+`AuthenticationViewModel.cs:124-127` — email regex validated before submit; password checked for length ≥6 characters.
+
+### Input Trimming
+
+Whitespace trimmed at 11 locations across 3 services and 4 ViewModels before data reaches the database.
+
+### Validation Wiring Gap
+
+The `Validation.ErrorTemplate` (2px red border defined in `App.xaml`) is never triggered — no `IDataErrorInfo` implementation or `ValidationRule` class exists in any ViewModel. All validation runs either in property setters, `CanExecute` gating, or at submit time.
+
+---
+
+## Error Handling
+
+### Architecture
+
+Errors are caught at three layers:
+
+```
+Service Layer ──► DataService ──► ViewModel (RelayCommand onError) ──► UI Notification
+      │                │                          │
+      │          ServiceException                  │
+      │         (UserFacingMessage)                │
+      │                                            │
+Global Exception Handlers (last resort) ──────► MessageBox
+```
+
+### Try-Catch Coverage (33+ blocks)
+
+| Location | Count | Scope |
+|---|---|---|
+| `App.xaml.cs` | 3 | Host startup, shutdown, auth flow initialization |
+| `RelayCommand.cs` / `RelayCommandAsync.cs` | 2 | Wraps every command's `Execute` delegate |
+| ViewModels (7 files) | 12 | `async void` event handlers (DeleteStudent, MarkAttendance, DeleteAssessment, etc.) |
+| `DataService.cs` | 16 | Every service call wrapped individually |
+| Code-behind files | 3 | AuthenticationView, AuthenticationWindow password/close handlers |
+
+### Error Callback Pattern
+
+`RelayCommand` and `RelayCommandAsync` accept an `Action<Exception>? onError` parameter. 25 command bindings pass an error callback. The standard pattern across most ViewModels:
+
+```csharp
+new RelayCommandAsync(
+    execute: async () => await _dataService.AddClassAsync(...),
+    canExecute: () => !string.IsNullOrWhiteSpace(NewClassName),
+    onError: ex => _notifications.ShowError(UnwrapMessage(ex)))
+```
+
+### UnwrapMessage Helper
+
+Defined in 4 ViewModels to convert exceptions to user-facing messages:
+
+```csharp
+private static string UnwrapMessage(Exception ex) =>
+    ex is ServiceException se ? se.UserFacingMessage
+                              : "Something went wrong. Please try again.";
+```
+
+`ServiceException` carries a `UserFacingMessage` property for clean error surfacing.
+
+### Global Exception Handlers
+
+Registered in `App.xaml.cs`:
+
+| Handler | Thread | App Termination |
+|---|---|---|
+| `AppDomain.CurrentDomain.UnhandledException` | Non-UI/any | Yes — last resort catch |
+| `DispatcherUnhandledException` | UI thread | No — `args.Handled = true` |
+
+Both display a `MessageBox` with the error text.
+
+### ErrorMessage / HasError Properties
+
+Defined in `ViewModelBase.cs:12-24`. Used by `AuthenticationViewModel` for email/password validation errors and `CalendarViewModel` for time format errors. Consumed in `AuthenticationView.xaml` via a conditional error border bound to `HasError`.
+
+### CanExecute Gating (Pre-Submit)
+
+9 commands use `CanExecute` to prevent submission with invalid input:
+
+| ViewModel | Command | Condition |
+|---|---|---|
+| `AuthenticationViewModel` | `SubmitCommand` | Email + password non-empty; sign-up also requires full name |
+| `ClassesViewModel` | `CreateClassCommand` | `NewClassName` non-empty |
+| `ClassesViewModel` | `AddStudentCommand` | Class selected + name non-empty |
+| `ClassesViewModel` | `AddAssessmentCommand` | Class selected + name non-empty + max score > 0 |
+| `ClassesViewModel` | `UploadContentCommand` | Class selected |
+| `CalendarViewModel` | `AddEventCommand` | Title non-empty |
+| `TodoViewModel` | `AddTaskCommand` | Title non-empty |
+| `SettingsViewModel` | `SaveCommand` | Editing + all fields non-empty |
+
+### Service Layer
+
+No service implementation contains try-catch blocks. Exceptions propagate to `DataService` which wraps them, rethrowing `ServiceException` with a user-facing message. This keeps the service layer clean and testable.
 
 ---
 
