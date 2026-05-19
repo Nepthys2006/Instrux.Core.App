@@ -1,4 +1,5 @@
-using Instrux.Infrastructure.Data;
+using Instrux.Domain.Models;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Interfaces;
 using Instrux.Services.Mapping;
@@ -8,43 +9,47 @@ namespace Instrux.Services.Implementations;
 
 public sealed class StudentService : IStudentService
 {
-    private readonly InstruxDbContext _dbContext;
+    private readonly IRepository _repo;
 
-    public StudentService(InstruxDbContext dbContext)
+    public StudentService(IRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
-    public async Task<List<StudentDto>> GetAllAsync(int teacherId) => (await _dbContext.Students
-        .Where(item => _dbContext.Classes.Any(classItem => classItem.Id == item.ClassId && classItem.TeacherId == teacherId))
+    public async Task<List<StudentDto>> GetAllAsync(int teacherId) => (await _repo.Query<Student>()
+        .Where(item => _repo.Query<Class>().Any(classItem => classItem.Id == item.ClassId && classItem.TeacherId == teacherId))
         .OrderBy(item => item.FullName)
         .ToListAsync())
         .Select(DtoMapper.ToDto)
         .ToList();
 
-    public async Task<List<StudentDto>> GetByClassAsync(int classId) => (await _dbContext.Students.Where(item => item.ClassId == classId).OrderBy(item => item.FullName).ToListAsync()).Select(DtoMapper.ToDto).ToList();
+    public async Task<List<StudentDto>> GetByClassAsync(int classId)
+    {
+        var items = await _repo.FindAsync<Student>(item => item.ClassId == classId);
+        return items.OrderBy(item => item.FullName).Select(DtoMapper.ToDto).ToList();
+    }
 
     public async Task<StudentDto> CreateAsync(CreateStudentDto request)
     {
         var student = DtoMapper.ToEntity(request);
-        _dbContext.Students.Add(student);
-        await _dbContext.SaveChangesAsync();
+        _repo.Add(student);
+        await _repo.SaveChangesAsync();
         return DtoMapper.ToDto(student);
     }
 
     public async Task DeleteAsync(int id)
     {
-        var student = await _dbContext.Students.FindAsync(id);
+        var student = await _repo.GetByIdAsync<Student>(id);
         if (student is null)
         {
             return;
         }
 
-        var attendance = await _dbContext.AttendanceRecords.Where(item => item.StudentId == id).ToListAsync();
-        var scores = await _dbContext.Scores.Where(item => item.StudentId == id).ToListAsync();
-        _dbContext.AttendanceRecords.RemoveRange(attendance);
-        _dbContext.Scores.RemoveRange(scores);
-        _dbContext.Students.Remove(student);
-        await _dbContext.SaveChangesAsync();
+        var attendance = await _repo.FindAsync<AttendanceRecord>(item => item.StudentId == id);
+        var scores = await _repo.FindAsync<Score>(item => item.StudentId == id);
+        _repo.DeleteRange(attendance);
+        _repo.DeleteRange(scores);
+        _repo.Delete(student);
+        await _repo.SaveChangesAsync();
     }
 }

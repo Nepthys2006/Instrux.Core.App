@@ -1,6 +1,7 @@
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
 using Instrux.Infrastructure.Data;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.Implementations;
 
 namespace Instrux.Tests;
@@ -16,7 +17,7 @@ public sealed class AttendanceServiceTests : IDisposable
     public AttendanceServiceTests()
     {
         _context = InMemoryDbContextFactory.Create();
-        _service = new AttendanceService(_context);
+        _service = new AttendanceService(new Repository(_context));
         _teacher = InMemoryDbContextFactory.CreateTeacher(_context);
         _class = InMemoryDbContextFactory.CreateClass(_context, _teacher.Id);
         _student = InMemoryDbContextFactory.CreateStudent(_context, _class.Id);

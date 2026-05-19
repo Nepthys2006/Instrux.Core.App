@@ -3,9 +3,6 @@ using Instrux.Application.ViewModels;
 
 namespace Instrux.Application;
 
-/// <summary>
-/// Interaction logic for MainWindow.xaml
-/// </summary>
 public partial class MainWindow : Window
 {
     public event EventHandler? SignOutRequested;

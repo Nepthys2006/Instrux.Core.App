@@ -1,7 +1,9 @@
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
 using Instrux.Infrastructure.Data;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
+using Instrux.Services.Exceptions;
 using Instrux.Services.Implementations;
 
 namespace Instrux.Tests;
@@ -15,7 +17,7 @@ public sealed class TeacherServiceTests : IDisposable
     public TeacherServiceTests()
     {
         _context = InMemoryDbContextFactory.Create();
-        _service = new TeacherService(_context);
+        _service = new TeacherService(new Repository(_context));
         _teacher = InMemoryDbContextFactory.CreateTeacher(_context);
     }
 
@@ -62,7 +64,8 @@ public sealed class TeacherServiceTests : IDisposable
     {
         var dto = new TeacherDto(999, "Ghost", "G", "ghost@test.com");
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.UpdateProfileAsync(dto));
+        var ex = await Assert.ThrowsAsync<ServiceException>(() => _service.UpdateProfileAsync(dto));
+        Assert.Equal("Teacher not found.", ex.UserFacingMessage);
     }
 
     [Fact]

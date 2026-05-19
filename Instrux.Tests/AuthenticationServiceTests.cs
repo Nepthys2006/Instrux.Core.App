@@ -1,4 +1,5 @@
 using Instrux.Infrastructure.Data;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Implementations;
 
@@ -12,7 +13,7 @@ public sealed class AuthenticationServiceTests : IDisposable
     public AuthenticationServiceTests()
     {
         _context = InMemoryDbContextFactory.Create();
-        _service = new AuthenticationService(_context);
+        _service = new AuthenticationService(new Repository(_context));
     }
 
     public void Dispose()

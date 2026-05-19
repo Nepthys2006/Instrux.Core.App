@@ -1,3 +1,5 @@
+using System;
+
 namespace Instrux.Application.Views;
 
 public partial class AuthenticationView
@@ -9,9 +11,16 @@ public partial class AuthenticationView
 
     private void OnPasswordChanged(object sender, System.Windows.RoutedEventArgs e)
     {
-        if (DataContext is ViewModels.AuthenticationViewModel viewModel)
+        try
         {
-            viewModel.Password = PasswordInput.Password;
+            if (DataContext is ViewModels.AuthenticationViewModel viewModel)
+            {
+                viewModel.Password = PasswordInput.Password;
+            }
+        }
+        catch
+        {
+            // Silently handle if DataContext is disposed
         }
     }
 }

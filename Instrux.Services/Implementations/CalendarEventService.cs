@@ -1,43 +1,54 @@
-using Instrux.Infrastructure.Data;
+using Instrux.Domain.Models;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Interfaces;
 using Instrux.Services.Mapping;
-using Microsoft.EntityFrameworkCore;
 
 namespace Instrux.Services.Implementations;
 
 public sealed class CalendarEventService : ICalendarEventService
 {
-    private readonly InstruxDbContext _dbContext;
+    private readonly IRepository _repo;
 
-    public CalendarEventService(InstruxDbContext dbContext)
+    public CalendarEventService(IRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
-    public async Task<List<CalendarEventDto>> GetAllAsync(int teacherId) => (await _dbContext.CalendarEvents.Where(item => item.TeacherId == teacherId).OrderBy(item => item.Date).ToListAsync()).Select(DtoMapper.ToDto).ToList();
+    public async Task<List<CalendarEventDto>> GetAllAsync(int teacherId) => (await _repo.FindAsync<CalendarEvent>(item => item.TeacherId == teacherId))
+        .OrderBy(item => item.Date)
+        .Select(DtoMapper.ToDto)
+        .ToList();
 
-    public async Task<List<CalendarEventDto>> GetByMonthAsync(int teacherId, int year, int month) => (await _dbContext.CalendarEvents.Where(item => item.TeacherId == teacherId && item.Date.Year == year && item.Date.Month == month).OrderBy(item => item.Date).ToListAsync()).Select(DtoMapper.ToDto).ToList();
+    public async Task<List<CalendarEventDto>> GetByMonthAsync(int teacherId, int year, int month)
+    {
+        var events = await _repo.FindAsync<CalendarEvent>(item => item.TeacherId == teacherId && item.Date.Year == year && item.Date.Month == month);
+        return events.OrderBy(item => item.Date).Select(DtoMapper.ToDto).ToList();
+    }
 
-    public async Task<List<CalendarEventDto>> GetTodayAsync(int teacherId) => (await _dbContext.CalendarEvents.Where(item => item.TeacherId == teacherId && item.Date == DateTime.Today).OrderBy(item => item.StartTime).ToListAsync()).Select(DtoMapper.ToDto).ToList();
+    public async Task<List<CalendarEventDto>> GetTodayAsync(int teacherId)
+    {
+        var events = await _repo.FindAsync<CalendarEvent>(item => item.TeacherId == teacherId && item.Date == DateTime.Today);
+        return events.OrderBy(item => item.StartTime).Select(DtoMapper.ToDto).ToList();
+    }
 
     public async Task<CalendarEventDto> CreateAsync(CreateEventDto request)
     {
         var calendarEvent = DtoMapper.ToEntity(request);
-        _dbContext.CalendarEvents.Add(calendarEvent);
-        await _dbContext.SaveChangesAsync();
+        _repo.Add(calendarEvent);
+        await _repo.SaveChangesAsync();
         return DtoMapper.ToDto(calendarEvent);
     }
 
     public async Task DeleteAsync(int id)
     {
-        var calendarEvent = await _dbContext.CalendarEvents.FindAsync(id);
+        var calendarEvent = await _repo.GetByIdAsync<CalendarEvent>(id);
         if (calendarEvent is null)
         {
             return;
         }
 
-        _dbContext.CalendarEvents.Remove(calendarEvent);
-        await _dbContext.SaveChangesAsync();
+        _repo.Delete(calendarEvent);
+        await _repo.SaveChangesAsync();
     }
 }

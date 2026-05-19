@@ -46,7 +46,7 @@ public sealed class DashboardViewModel : ViewModelBase
 
     public int ClassCount => _dataService.Classes.Count;
     public int StudentCount => _dataService.Students.Count;
-    public int TasksDueToday => _dataService.Todos.Count(item => item.DueDate?.Date == DateTime.Today && !item.IsCompleted);
+    public int TasksDueToday => _dataService.Todos.Count(item => item.DueDate?.Date <= DateTime.Today && !item.IsCompleted);
     public int AttendanceMarkedToday => _dataService.Attendance.Count(item => item.Date.Date == DateTime.Today);
 
     private void OnDataChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();

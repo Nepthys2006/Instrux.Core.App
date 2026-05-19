@@ -19,11 +19,11 @@
                     <TextBlock Text="Create class spaces with rosters, grades, attendance and files." Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,4,0,16" />
 
                     <TextBlock Text="Name of class" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewClassName, UpdateSourceTrigger=PropertyChanged}" MinWidth="220" Margin="0,0,0,8" ToolTip="Example: Grade 8 Mathematics" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewClassName, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" MinWidth="220" Margin="0,0,0,8" ToolTip="Example: Grade 8 Mathematics" />
                     <TextBlock Text="Section" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewClassSection, UpdateSourceTrigger=PropertyChanged}" MinWidth="220" Margin="0,0,0,8" ToolTip="Example: Section A" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewClassSection, UpdateSourceTrigger=PropertyChanged}" MaxLength="50" MinWidth="220" Margin="0,0,0,8" ToolTip="Example: Section A" />
                     <TextBlock Text="Subject" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                    <ComboBox ItemsSource="{Binding Subjects}" SelectedItem="{Binding SelectedSubject}" Padding="12,8" Margin="0,0,0,10" />
+                    <ComboBox ItemsSource="{Binding Subjects}" SelectedItem="{Binding SelectedSubject}" Padding="12,8" Margin="0,0,0,10" ToolTip="Select the subject for this class" />
                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding CreateClassCommand}" HorizontalContentAlignment="Center" Margin="0,0,0,18">
                         <StackPanel Orientation="Horizontal">
                             <svgc:SvgViewbox Source="/Resources/plus.svg" Width="16" Height="16" Margin="0,0,8,0" />
@@ -86,8 +86,11 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <svgc:SvgViewbox Source="/Resources/search.svg" Width="18" Height="18" Margin="0,0,10,0" />
-                        <TextBox Grid.Column="1" Style="{StaticResource InputBox}" Text="{Binding ClassSearch, UpdateSourceTrigger=PropertyChanged}" BorderThickness="0" Background="White" ToolTip="Search students by name, ID, or email" />
+                        <StackPanel Orientation="Horizontal" Grid.Column="0" Margin="0,0,10,0">
+                            <svgc:SvgViewbox Source="/Resources/search.svg" Width="18" Height="18" VerticalAlignment="Center" />
+                            <TextBlock Text="Find designated students" Foreground="{StaticResource MutedInkBrush}" FontSize="14" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </StackPanel>
+                        <TextBox Grid.Column="1" Style="{StaticResource InputBox}" Text="{Binding ClassSearch, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" BorderThickness="0" Background="White" ToolTip="Search students by name" />
                     </Grid>
                 </Border>
 
@@ -117,28 +120,22 @@
                         <Grid Margin="0,18,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <StackPanel Margin="0,0,0,12">
-                                <TextBlock Text="Find designated student" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" ToolTip="Search roster by student name" />
-                            </StackPanel>
-
-                            <Grid Grid.Row="1" Margin="0,0,0,12">
+                            <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Student full name" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentName, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" ToolTip="Example: Juan Dela Cruz" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentName, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" MinWidth="280" ToolTip="Example: Juan Dela Cruz" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="Add" Style="{StaticResource PrimaryButton}" Command="{Binding AddStudentCommand}" Margin="10,0,0,0" />
                             </Grid>
 
-                            <DataGrid Grid.Row="2" ItemsSource="{Binding Students}" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" BorderThickness="0" RowHeight="54" HorizontalScrollBarVisibility="Auto">
+                            <DataGrid Grid.Row="1" ItemsSource="{Binding Students}" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" BorderThickness="0" RowHeight="54" HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Name" Binding="{Binding Student.FullName}" Width="*" />
                                     <DataGridTextColumn Header="Total Attendance" Binding="{Binding TotalAttendance}" Width="105" />
@@ -166,7 +163,7 @@
                             </Grid.RowDefinitions>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                                 <TextBlock Text="Attendance date" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <DatePicker SelectedDate="{Binding AttendanceDate}" />
+                                <DatePicker SelectedDate="{Binding AttendanceDate}" ToolTip="Select date to view or mark attendance" />
                             </StackPanel>
                             <DataGrid Grid.Row="1" ItemsSource="{Binding AttendanceRows}" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" BorderThickness="0" RowHeight="56" HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
@@ -222,15 +219,15 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Assessment name" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewAssessmentName, UpdateSourceTrigger=PropertyChanged}" ToolTip="Example: Quiz 1" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewAssessmentName, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" ToolTip="Example: Quiz 1" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                     <TextBlock Text="Type" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <ComboBox ItemsSource="{Binding AssessmentTypes}" SelectedItem="{Binding NewAssessmentType}" Padding="12,8" />
+                                    <ComboBox ItemsSource="{Binding AssessmentTypes}" SelectedItem="{Binding NewAssessmentType}" Padding="12,8" ToolTip="Quiz = Written Works, Activity = Performance Tasks, Exam = Quarterly Assessment" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Margin="8,0,0,0">
                                     <TextBlock Text="Over score / Max" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewAssessmentMaxScore, UpdateSourceTrigger=PropertyChanged}" ToolTip="Example: 100" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewAssessmentMaxScore, UpdateSourceTrigger=PropertyChanged}" MaxLength="6" InputScope="Number" ToolTip="Example: 100" />
                                 </StackPanel>
                                 <Button Grid.Column="3" Content="Add assessment" Style="{StaticResource PrimaryButton}" Command="{Binding AddAssessmentCommand}" Margin="10,18,0,0" />
                             </Grid>
@@ -278,7 +275,7 @@
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <TextBox Width="112" Style="{StaticResource InputBox}" Text="{Binding Value, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.##}}" Margin="0,0,8,0" ToolTip="Enter score" />
+                                                                <TextBox Width="112" Style="{StaticResource InputBox}" Text="{Binding Value, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.##}}" MaxLength="6" InputScope="Number" Margin="0,0,8,0" ToolTip="Enter score (max {Binding MaxScore})" />
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>

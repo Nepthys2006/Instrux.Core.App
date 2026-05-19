@@ -1,16 +1,19 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Instrux.Application.Helpers;
 using Instrux.Application.Services;
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
+using Instrux.Services.Exceptions;
 
 namespace Instrux.Application.ViewModels;
 
 public sealed class CalendarViewModel : ViewModelBase
 {
     private readonly DataService _dataService;
+    private readonly NotificationService _notifications;
     private DateTime _visibleMonth = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateTime _selectedDate = DateTime.Today;
     private string _newEventTitle = string.Empty;
@@ -18,15 +21,16 @@ public sealed class CalendarViewModel : ViewModelBase
     private string _startTimeText = string.Empty;
     private string _eventNotes = string.Empty;
 
-    public CalendarViewModel(DataService dataService)
+    public CalendarViewModel(DataService dataService, NotificationService notificationService)
     {
         _dataService = dataService;
+        _notifications = notificationService;
         Categories = Enum.GetValues<EventCategory>();
-        PreviousMonthCommand = new RelayCommand(() => VisibleMonth = VisibleMonth.AddMonths(-1));
-        NextMonthCommand = new RelayCommand(() => VisibleMonth = VisibleMonth.AddMonths(1));
-        SelectDayCommand = new RelayCommand(SelectDay);
-        AddEventCommand = new RelayCommandAsync(AddEventAsync, () => !string.IsNullOrWhiteSpace(NewEventTitle));
-        DeleteEventCommand = new RelayCommand(DeleteEvent);
+        PreviousMonthCommand = new RelayCommand(() => VisibleMonth = VisibleMonth.AddMonths(-1), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        NextMonthCommand = new RelayCommand(() => VisibleMonth = VisibleMonth.AddMonths(1), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        SelectDayCommand = new RelayCommand(SelectDay, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        AddEventCommand = new RelayCommandAsync(AddEventAsync, () => !string.IsNullOrWhiteSpace(NewEventTitle), ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteEventCommand = new RelayCommand(DeleteEvent, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
         _dataService.Events.CollectionChanged += OnEventsChanged;
         BuildMonth();
         RefreshAgenda();
@@ -117,6 +121,12 @@ public sealed class CalendarViewModel : ViewModelBase
 
     private async Task AddEventAsync()
     {
+        if (!string.IsNullOrWhiteSpace(StartTimeText) && !Regex.IsMatch(StartTimeText, @"^([01]\d|2[0-3]):[0-5]\d$"))
+        {
+            ErrorMessage = "Start time must be in HH:mm format (e.g., 14:30).";
+            return;
+        }
+
         var startTime = TimeSpan.TryParse(StartTimeText, out var parsed) ? parsed : (TimeSpan?)null;
         await _dataService.AddEventAsync(new CalendarEvent
         {
@@ -136,15 +146,24 @@ public sealed class CalendarViewModel : ViewModelBase
 
     private async void DeleteEvent(object? parameter)
     {
-        if (parameter is not CalendarEvent calendarEvent)
+        try
         {
-            return;
-        }
+            if (parameter is not CalendarEvent calendarEvent)
+            {
+                return;
+            }
 
-        await _dataService.DeleteEventAsync(calendarEvent);
-        BuildMonth();
-        RefreshAgenda();
+            await _dataService.DeleteEventAsync(calendarEvent);
+            BuildMonth();
+            RefreshAgenda();
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(UnwrapMessage(ex));
+        }
     }
+
+    private static string UnwrapMessage(Exception ex) => ex is ServiceException se ? se.UserFacingMessage : "Something went wrong. Please try again.";
 
     private void OnEventsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {

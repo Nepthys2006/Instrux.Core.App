@@ -72,8 +72,13 @@ public sealed class GradeCellViewModel : ViewModelBase
         {
             if (SetProperty(ref _value, value))
             {
-                _ = _save(this);
+                _ = SaveScoreAsync();
             }
         }
+    }
+
+    private async Task SaveScoreAsync()
+    {
+        await _save(this);
     }
 }

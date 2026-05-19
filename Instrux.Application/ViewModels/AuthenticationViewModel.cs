@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Instrux.Application.Helpers;
 using Instrux.Application.Services;
@@ -6,7 +7,7 @@ using Instrux.Services.Interfaces;
 
 namespace Instrux.Application.ViewModels;
 
-public sealed class AuthenticationViewModel : ViewModelBase
+public sealed partial class AuthenticationViewModel : ViewModelBase
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly SessionService _sessionService;
@@ -14,14 +15,16 @@ public sealed class AuthenticationViewModel : ViewModelBase
     private string _password = string.Empty;
     private string _fullName = string.Empty;
     private string _nickname = string.Empty;
-    private string _errorMessage = string.Empty;
     private bool _isSignUp;
+
+    [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+    private static partial Regex EmailRegex();
 
     public AuthenticationViewModel(IAuthenticationService authenticationService, SessionService sessionService)
     {
         _authenticationService = authenticationService;
         _sessionService = sessionService;
-        SubmitCommand = new RelayCommandAsync(SubmitAsync, CanSubmit);
+        SubmitCommand = new RelayCommandAsync(SubmitAsync, CanSubmit, ex => ErrorMessage = ex.Message);
         ToggleModeCommand = new RelayCommand(ToggleMode);
     }
 
@@ -72,20 +75,6 @@ public sealed class AuthenticationViewModel : ViewModelBase
         set => SetProperty(ref _nickname, value);
     }
 
-    public string ErrorMessage
-    {
-        get => _errorMessage;
-        set
-        {
-            if (SetProperty(ref _errorMessage, value))
-            {
-                OnPropertyChanged(nameof(HasError));
-            }
-        }
-    }
-
-    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
-
     public bool IsSignUp
     {
         get => _isSignUp;
@@ -107,11 +96,37 @@ public sealed class AuthenticationViewModel : ViewModelBase
     public string PrimaryActionText => IsSignUp ? "Create account" : "Sign in";
     public string ToggleActionText => IsSignUp ? "Already have an account? Sign in" : "New to Instrux? Create account";
 
-    private bool CanSubmit() => !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password) && (!IsSignUp || !string.IsNullOrWhiteSpace(FullName));
+    private bool CanSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+        {
+            return false;
+        }
+
+        if (IsSignUp && string.IsNullOrWhiteSpace(FullName))
+        {
+            return false;
+        }
+
+        return true;
+    }
 
     private async Task SubmitAsync()
     {
         ErrorMessage = string.Empty;
+
+        if (!EmailRegex().IsMatch(Email))
+        {
+            ErrorMessage = "Please enter a valid email address.";
+            return;
+        }
+
+        if (Password.Length < 6)
+        {
+            ErrorMessage = "Password must be at least 6 characters.";
+            return;
+        }
+
         var result = IsSignUp
             ? await _authenticationService.RegisterAsync(new RegisterRequestDto(FullName, string.IsNullOrWhiteSpace(Nickname) ? FullName : Nickname, Email, Password))
             : await _authenticationService.LoginAsync(new LoginRequestDto(Email, Password));

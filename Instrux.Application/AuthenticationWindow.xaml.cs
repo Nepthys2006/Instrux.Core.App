@@ -12,16 +12,30 @@ public partial class AuthenticationWindow : Window
         DataContext = viewModel;
         viewModel.AuthenticationSucceeded += (_, _) =>
         {
-            DialogResult = true;
-            Close();
+            try
+            {
+                DialogResult = true;
+                Close();
+            }
+            catch
+            {
+                // Silently handle if already closed
+            }
         };
     }
 
     private void OnDragMove(object sender, MouseButtonEventArgs e)
     {
-        if (e.ButtonState == MouseButtonState.Pressed)
+        try
         {
-            DragMove();
+            if (e.ButtonState == MouseButtonState.Pressed)
+            {
+                DragMove();
+            }
+        }
+        catch
+        {
+            // Silently handle drag move failures
         }
     }
 }

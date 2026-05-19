@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
 using Instrux.Services.DTOs;
+using Instrux.Services.Exceptions;
 using Instrux.Services.Interfaces;
 
 namespace Instrux.Application.Services;
@@ -60,15 +61,26 @@ public sealed class DataService
 
     public async Task InitializeAsync()
     {
-        var teacherId = _sessionService.CurrentTeacher.Id;
-        Replace(Classes, (await _classService.GetAllAsync(teacherId)).Select(ToDomain));
-        Replace(Students, (await _studentService.GetAllAsync(teacherId)).Select(ToDomain));
-        Replace(Attendance, (await _attendanceService.GetAllAsync(teacherId)).Select(ToDomain));
-        Replace(Assessments, (await _gradeService.GetAllAssessmentsAsync(teacherId)).Select(ToDomain));
-        Replace(Scores, (await _gradeService.GetAllScoresAsync(teacherId)).Select(ToDomain));
-        Replace(ContentItems, (await _contentService.GetAllAsync(teacherId)).Select(ToDomain));
-        Replace(Events, (await _calendarEventService.GetAllAsync(teacherId)).Select(ToDomain));
-        Replace(Todos, (await _todoService.GetAllAsync(teacherId)).Select(ToDomain));
+        try
+        {
+            var teacherId = _sessionService.CurrentTeacher.Id;
+            Replace(Classes, (await _classService.GetAllAsync(teacherId)).Select(ToDomain));
+            Replace(Students, (await _studentService.GetAllAsync(teacherId)).Select(ToDomain));
+            Replace(Attendance, (await _attendanceService.GetAllAsync(teacherId)).Select(ToDomain));
+            Replace(Assessments, (await _gradeService.GetAllAssessmentsAsync(teacherId)).Select(ToDomain));
+            Replace(Scores, (await _gradeService.GetAllScoresAsync(teacherId)).Select(ToDomain));
+            Replace(ContentItems, (await _contentService.GetAllAsync(teacherId)).Select(ToDomain));
+            Replace(Events, (await _calendarEventService.GetAllAsync(teacherId)).Select(ToDomain));
+            Replace(Todos, (await _todoService.GetAllAsync(teacherId)).Select(ToDomain));
+        }
+        catch (ServiceException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new ServiceException("Failed to load your data. Please try signing in again.", ex);
+        }
     }
 
     public IEnumerable<Student> GetStudentsForClass(int classId) => Students.Where(student => student.ClassId == classId);
@@ -81,142 +93,217 @@ public sealed class DataService
 
     public async Task<Class> AddClassAsync(Class classItem)
     {
-        var created = await _classService.CreateAsync(new CreateClassDto(classItem.Name, classItem.Section, classItem.Subject, classItem.SchoolYear, classItem.Semester, classItem.CoverColor, _sessionService.CurrentTeacher.Id));
-        var domain = ToDomain(created);
-        Classes.Add(domain);
-        return domain;
+        try
+        {
+            var created = await _classService.CreateAsync(new CreateClassDto(classItem.Name, classItem.Section, classItem.Subject, classItem.SchoolYear, classItem.Semester, classItem.CoverColor, _sessionService.CurrentTeacher.Id));
+            var domain = ToDomain(created);
+            Classes.Add(domain);
+            return domain;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to create class. Please try again.", ex); }
     }
 
     public async Task DeleteClassAsync(Class classItem)
     {
-        await _classService.DeleteAsync(classItem.Id);
-        Classes.Remove(classItem);
-
-        var removedStudentIds = Students.Where(item => item.ClassId == classItem.Id).Select(item => item.Id).ToHashSet();
-        var removedAssessmentIds = Assessments.Where(item => item.ClassId == classItem.Id).Select(item => item.Id).ToHashSet();
-
-        Replace(Students, Students.Where(item => item.ClassId != classItem.Id).ToList());
-        Replace(Assessments, Assessments.Where(item => item.ClassId != classItem.Id).ToList());
-        Replace(ContentItems, ContentItems.Where(item => item.ClassId != classItem.Id).ToList());
-        Replace(Attendance, Attendance.Where(item => !removedStudentIds.Contains(item.StudentId)).ToList());
-        Replace(Scores, Scores.Where(item => !removedStudentIds.Contains(item.StudentId) && !removedAssessmentIds.Contains(item.AssessmentId)).ToList());
-
-        foreach (var calendarEvent in Events.Where(item => item.LinkedClassId == classItem.Id))
+        try
         {
-            calendarEvent.LinkedClassId = null;
-        }
+            await _classService.DeleteAsync(classItem.Id);
+            Classes.Remove(classItem);
 
-        foreach (var todo in Todos.Where(item => item.LinkedClassId == classItem.Id))
-        {
-            todo.LinkedClassId = null;
+            var removedStudentIds = Students.Where(item => item.ClassId == classItem.Id).Select(item => item.Id).ToHashSet();
+            var removedAssessmentIds = Assessments.Where(item => item.ClassId == classItem.Id).Select(item => item.Id).ToHashSet();
+
+            Replace(Students, Students.Where(item => item.ClassId != classItem.Id).ToList());
+            Replace(Assessments, Assessments.Where(item => item.ClassId != classItem.Id).ToList());
+            Replace(ContentItems, ContentItems.Where(item => item.ClassId != classItem.Id).ToList());
+            Replace(Attendance, Attendance.Where(item => !removedStudentIds.Contains(item.StudentId)).ToList());
+            Replace(Scores, Scores.Where(item => !removedStudentIds.Contains(item.StudentId) && !removedAssessmentIds.Contains(item.AssessmentId)).ToList());
+
+            foreach (var calendarEvent in Events.Where(item => item.LinkedClassId == classItem.Id))
+            {
+                calendarEvent.LinkedClassId = null;
+            }
+
+            foreach (var todo in Todos.Where(item => item.LinkedClassId == classItem.Id))
+            {
+                todo.LinkedClassId = null;
+            }
         }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete class. Please try again.", ex); }
     }
 
     public async Task<Student> AddStudentAsync(Student student)
     {
-        var created = await _studentService.CreateAsync(new CreateStudentDto(student.FullName, student.StudentId, student.Email, student.ClassId));
-        var domain = ToDomain(created);
-        Students.Add(domain);
-        return domain;
+        try
+        {
+            var created = await _studentService.CreateAsync(new CreateStudentDto(student.FullName, student.StudentId, student.Email, student.ClassId));
+            var domain = ToDomain(created);
+            Students.Add(domain);
+            return domain;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to add student. Please try again.", ex); }
     }
 
     public async Task DeleteStudentAsync(Student student)
     {
-        await _studentService.DeleteAsync(student.Id);
-        Students.Remove(student);
+        try
+        {
+            await _studentService.DeleteAsync(student.Id);
+            Students.Remove(student);
 
-        Replace(Attendance, Attendance.Where(item => item.StudentId != student.Id).ToList());
-        Replace(Scores, Scores.Where(item => item.StudentId != student.Id).ToList());
+            Replace(Attendance, Attendance.Where(item => item.StudentId != student.Id).ToList());
+            Replace(Scores, Scores.Where(item => item.StudentId != student.Id).ToList());
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete student. Please try again.", ex); }
     }
 
     public async Task AddTodoAsync(TodoItem todo)
     {
-        var created = await _todoService.CreateAsync(new CreateTodoDto(todo.Title, todo.DueDate, todo.Priority, todo.LinkedClassId, _sessionService.CurrentTeacher.Id));
-        Todos.Insert(0, ToDomain(created));
+        try
+        {
+            var created = await _todoService.CreateAsync(new CreateTodoDto(todo.Title, todo.DueDate, todo.Priority, todo.LinkedClassId, _sessionService.CurrentTeacher.Id));
+            Todos.Insert(0, ToDomain(created));
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to add task. Please try again.", ex); }
     }
 
     public async Task ToggleTodoAsync(TodoItem todo)
     {
-        var saved = await _todoService.ToggleAsync(todo.Id);
-        todo.IsCompleted = saved.IsCompleted;
-        todo.CompletedAt = saved.CompletedAt;
+        try
+        {
+            var saved = await _todoService.ToggleAsync(todo.Id);
+            todo.IsCompleted = saved.IsCompleted;
+            todo.CompletedAt = saved.CompletedAt;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to update task. Please try again.", ex); }
     }
 
     public async Task DeleteTodoAsync(TodoItem todo)
     {
-        await _todoService.DeleteAsync(todo.Id);
-        Todos.Remove(todo);
+        try
+        {
+            await _todoService.DeleteAsync(todo.Id);
+            Todos.Remove(todo);
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete task. Please try again.", ex); }
     }
 
     public async Task<CalendarEvent> AddEventAsync(CalendarEvent calendarEvent)
     {
-        var created = await _calendarEventService.CreateAsync(new CreateEventDto(calendarEvent.Title, calendarEvent.Date, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Category, calendarEvent.LinkedClassId, calendarEvent.Notes, _sessionService.CurrentTeacher.Id));
-        var domain = ToDomain(created);
-        Events.Add(domain);
-        return domain;
+        try
+        {
+            var created = await _calendarEventService.CreateAsync(new CreateEventDto(calendarEvent.Title, calendarEvent.Date, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Category, calendarEvent.LinkedClassId, calendarEvent.Notes, _sessionService.CurrentTeacher.Id));
+            var domain = ToDomain(created);
+            Events.Add(domain);
+            return domain;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to add event. Please try again.", ex); }
     }
 
     public async Task DeleteEventAsync(CalendarEvent calendarEvent)
     {
-        await _calendarEventService.DeleteAsync(calendarEvent.Id);
-        Events.Remove(calendarEvent);
+        try
+        {
+            await _calendarEventService.DeleteAsync(calendarEvent.Id);
+            Events.Remove(calendarEvent);
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete event. Please try again.", ex); }
     }
 
     public async Task<Assessment> AddAssessmentAsync(Assessment assessment)
     {
-        var created = await _gradeService.CreateAssessmentAsync(new AssessmentDto(0, assessment.ClassId, assessment.Name, assessment.Type, assessment.MaxScore, assessment.Weight, assessment.Date));
-        var domain = ToDomain(created);
-        Assessments.Add(domain);
-        return domain;
+        try
+        {
+            var created = await _gradeService.CreateAssessmentAsync(new AssessmentDto(0, assessment.ClassId, assessment.Name, assessment.Type, assessment.MaxScore, assessment.Weight, assessment.Date));
+            var domain = ToDomain(created);
+            Assessments.Add(domain);
+            return domain;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to add assessment. Please try again.", ex); }
     }
 
     public async Task DeleteAssessmentAsync(Assessment assessment)
     {
-        await _gradeService.DeleteAssessmentAsync(assessment.Id);
-        Assessments.Remove(assessment);
-        Replace(Scores, Scores.Where(s => s.AssessmentId != assessment.Id).ToList());
+        try
+        {
+            await _gradeService.DeleteAssessmentAsync(assessment.Id);
+            Assessments.Remove(assessment);
+            Replace(Scores, Scores.Where(s => s.AssessmentId != assessment.Id).ToList());
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete assessment. Please try again.", ex); }
     }
 
     public async Task SaveScoreAsync(int studentId, int assessmentId, decimal? value)
     {
-        var saved = await _gradeService.UpdateScoreAsync(new ScoreDto(0, studentId, assessmentId, value));
-        var local = Scores.FirstOrDefault(item => item.StudentId == studentId && item.AssessmentId == assessmentId);
-        if (local is null)
+        try
         {
-            Scores.Add(ToDomain(saved));
+            var saved = await _gradeService.UpdateScoreAsync(new ScoreDto(0, studentId, assessmentId, value));
+            var local = Scores.FirstOrDefault(item => item.StudentId == studentId && item.AssessmentId == assessmentId);
+            if (local is null)
+            {
+                Scores.Add(ToDomain(saved));
+            }
+            else
+            {
+                local.Value = value;
+            }
         }
-        else
-        {
-            local.Value = value;
-        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to save score. Please try again.", ex); }
     }
 
     public async Task<ContentItem> AddContentItemAsync(ContentItem content)
     {
-        var created = await _contentService.CreateAsync(new CreateContentItemDto(content.ClassId, content.FolderId, content.Title, content.Description, content.Type, content.FilePath, content.IsVisible));
-        var domain = ToDomain(created);
-        ContentItems.Insert(0, domain);
-        return domain;
+        try
+        {
+            var created = await _contentService.CreateAsync(new CreateContentItemDto(content.ClassId, content.FolderId, content.Title, content.Description, content.Type, content.FilePath, content.IsVisible));
+            var domain = ToDomain(created);
+            ContentItems.Insert(0, domain);
+            return domain;
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to upload content. Please try again.", ex); }
     }
 
     public async Task DeleteContentItemAsync(ContentItem content)
     {
-        await _contentService.DeleteAsync(content.Id);
-        ContentItems.Remove(content);
+        try
+        {
+            await _contentService.DeleteAsync(content.Id);
+            ContentItems.Remove(content);
+        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to delete content. Please try again.", ex); }
     }
 
     public async Task SaveAttendanceRecordAsync(int studentId, DateTime date, AttendanceStatus status)
     {
-        var saved = await _attendanceService.SaveRecordAsync(studentId, date.Date, status);
-        var local = Attendance.FirstOrDefault(item => item.StudentId == studentId && item.Date.Date == date.Date);
-        if (local is null)
+        try
         {
-            Attendance.Add(ToDomain(saved));
+            var saved = await _attendanceService.SaveRecordAsync(studentId, date.Date, status);
+            var local = Attendance.FirstOrDefault(item => item.StudentId == studentId && item.Date.Date == date.Date);
+            if (local is null)
+            {
+                Attendance.Add(ToDomain(saved));
+            }
+            else
+            {
+                local.Status = status;
+            }
         }
-        else
-        {
-            local.Status = status;
-        }
+        catch (ServiceException) { throw; }
+        catch (Exception ex) { throw new ServiceException("Failed to save attendance. Please try again.", ex); }
     }
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         mc:Ignorable="d"
         Title="Instrux"
         Height="820"
@@ -195,5 +196,11 @@
 
             <ContentControl Grid.Row="1" Content="{Binding CurrentPage}" />
         </Grid>
+
+        <materialDesign:Snackbar
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            Margin="0,0,0,16"
+            MessageQueue="{Binding NotificationService.MessageQueue}" />
     </Grid>
 </Window>

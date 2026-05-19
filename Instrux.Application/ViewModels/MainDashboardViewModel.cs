@@ -15,16 +15,19 @@ public sealed class MainDashboardViewModel : ViewModelBase
     private object _currentPage;
     private string _pageTitle;
 
-    public MainDashboardViewModel(DataService dataService, SessionService sessionService, ITeacherService teacherService)
+    public NotificationService NotificationService { get; }
+
+    public MainDashboardViewModel(DataService dataService, SessionService sessionService, ITeacherService teacherService, NotificationService notificationService)
     {
         _dataService = dataService;
         _sessionService = sessionService;
+        NotificationService = notificationService;
 
         Dashboard = new DashboardViewModel(_dataService, _sessionService);
-        Classes = new ClassesViewModel(_dataService);
-        Calendar = new CalendarViewModel(_dataService);
-        Todo = new TodoViewModel(_dataService);
-        Settings = new SettingsViewModel(_sessionService, teacherService);
+        Classes = new ClassesViewModel(_dataService, notificationService);
+        Calendar = new CalendarViewModel(_dataService, notificationService);
+        Todo = new TodoViewModel(_dataService, notificationService);
+        Settings = new SettingsViewModel(_sessionService, teacherService, notificationService);
         Settings.SignOutRequested += (_, _) => SignOut();
 
         NavigationItems =
@@ -47,7 +50,7 @@ public sealed class MainDashboardViewModel : ViewModelBase
         NavigateCommand = new RelayCommand(Navigate);
         SignOutCommand = new RelayCommand(SignOut);
 
-        RecentClasses = new ObservableCollection<Class>(_dataService.Classes.Take(3));
+        RecentClasses = new ObservableCollection<Class>(_dataService.Classes);
         _dataService.Classes.CollectionChanged += OnClassesChanged;
     }
 
@@ -105,7 +108,7 @@ public sealed class MainDashboardViewModel : ViewModelBase
     private void OnClassesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         RecentClasses.Clear();
-        foreach (var classItem in _dataService.Classes.Take(3))
+        foreach (var classItem in _dataService.Classes)
         {
             RecentClasses.Add(classItem);
         }

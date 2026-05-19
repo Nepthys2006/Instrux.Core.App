@@ -19,6 +19,7 @@
             <converters:EventCategoryToBrushConverter x:Key="EventCategoryToBrushConverter" />
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
             <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
 
             <!-- Primary Blue -->
             <SolidColorBrush x:Key="PrimaryDark" Color="#2C5EAD" />
@@ -125,6 +126,16 @@
                 <Setter Property="Background" Value="White" />
                 <Setter Property="Padding" Value="14,10" />
                 <Setter Property="FontSize" Value="14" />
+                <Setter Property="Validation.ErrorTemplate">
+                    <Setter.Value>
+                        <ControlTemplate>
+                            <Grid>
+                                <AdornedElementPlaceholder />
+                                <Border BorderBrush="{StaticResource DangerBrush}" BorderThickness="2" CornerRadius="14" IsHitTestVisible="False" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="TextBox">

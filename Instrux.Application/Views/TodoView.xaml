@@ -18,15 +18,15 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="Task title" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" FontSize="18" ToolTip="Example: Check quiz papers" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NewTaskTitle, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" FontSize="18" ToolTip="Example: Check quiz papers" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="12,0">
                         <TextBlock Text="Priority" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                        <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Padding="10" />
+                        <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding SelectedPriority}" Padding="10" ToolTip="Low, Medium, or High priority" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Margin="0,0,12,0">
                         <TextBlock Text="Due date" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                        <DatePicker SelectedDate="{Binding NewTaskDueDate}" />
+                        <DatePicker SelectedDate="{Binding NewTaskDueDate}" ToolTip="Set the due date for this task" />
                     </StackPanel>
                     <Button Grid.Column="3" Style="{StaticResource PrimaryButton}" Command="{Binding AddTaskCommand}" Margin="0,18,0,0">
                         <StackPanel Orientation="Horizontal">
@@ -40,7 +40,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,18">
                 <StackPanel>
                     <TextBlock Text="Search tasks" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                    <TextBox Style="{StaticResource InputBox}" Text="{Binding TodoSearch, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search by task title" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding TodoSearch, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" ToolTip="Search by task title" />
                 </StackPanel>
             </Border>
 

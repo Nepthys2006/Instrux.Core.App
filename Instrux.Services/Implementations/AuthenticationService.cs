@@ -1,25 +1,24 @@
 using Instrux.Domain.Models;
-using Instrux.Infrastructure.Data;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Interfaces;
 using Instrux.Services.Mapping;
-using Microsoft.EntityFrameworkCore;
 
 namespace Instrux.Services.Implementations;
 
 public sealed class AuthenticationService : IAuthenticationService
 {
-    private readonly InstruxDbContext _dbContext;
+    private readonly IRepository _repo;
 
-    public AuthenticationService(InstruxDbContext dbContext)
+    public AuthenticationService(IRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
     public async Task<AuthResultDto> LoginAsync(LoginRequestDto request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        var teacher = await _dbContext.Teachers.FirstOrDefaultAsync(item => item.Email.ToLower() == email);
+        var teacher = await _repo.FirstOrDefaultAsync<Teacher>(item => item.Email.ToLower() == email);
         if (teacher is null || teacher.PasswordHash != request.Password)
         {
             return new AuthResultDto(false, "Invalid email or password.", null);
@@ -31,7 +30,7 @@ public sealed class AuthenticationService : IAuthenticationService
     public async Task<AuthResultDto> RegisterAsync(RegisterRequestDto request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
-        if (await _dbContext.Teachers.AnyAsync(item => item.Email.ToLower() == email))
+        if (await _repo.AnyAsync<Teacher>(item => item.Email.ToLower() == email))
         {
             return new AuthResultDto(false, "That email is already registered.", null);
         }
@@ -44,8 +43,8 @@ public sealed class AuthenticationService : IAuthenticationService
             PasswordHash = request.Password
         };
 
-        _dbContext.Teachers.Add(teacher);
-        await _dbContext.SaveChangesAsync();
+        _repo.Add(teacher);
+        await _repo.SaveChangesAsync();
 
         return new AuthResultDto(true, "Account created.", DtoMapper.ToDto(teacher));
     }

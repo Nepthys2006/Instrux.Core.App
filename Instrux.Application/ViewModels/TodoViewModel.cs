@@ -6,26 +6,29 @@ using Instrux.Application.Helpers;
 using Instrux.Application.Services;
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
+using Instrux.Services.Exceptions;
 
 namespace Instrux.Application.ViewModels;
 
 public sealed class TodoViewModel : ViewModelBase
 {
     private readonly DataService _dataService;
+    private readonly NotificationService _notifications;
     private string _newTaskTitle = string.Empty;
     private Priority _selectedPriority = Priority.Medium;
     private DateTime? _newTaskDueDate = DateTime.Today;
     private string _selectedFilter = "All";
     private string _todoSearch = string.Empty;
 
-    public TodoViewModel(DataService dataService)
+    public TodoViewModel(DataService dataService, NotificationService notificationService)
     {
         _dataService = dataService;
+        _notifications = notificationService;
         Todos = dataService.Todos;
         Filters = ["All", "Today", "Upcoming", "Completed"];
-        AddTaskCommand = new RelayCommandAsync(AddTaskAsync, () => !string.IsNullOrWhiteSpace(NewTaskTitle));
-        ToggleTaskCommand = new RelayCommand(ToggleTask);
-        DeleteTaskCommand = new RelayCommand(DeleteTask);
+        AddTaskCommand = new RelayCommandAsync(AddTaskAsync, () => !string.IsNullOrWhiteSpace(NewTaskTitle), ex => _notifications.ShowError(UnwrapMessage(ex)));
+        ToggleTaskCommand = new RelayCommand(ToggleTask, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteTaskCommand = new RelayCommand(DeleteTask, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
         SetFilterCommand = new RelayCommand(parameter => SelectedFilter = parameter?.ToString() ?? "All");
         Todos.CollectionChanged += OnTodosChanged;
         RefreshGroups();
@@ -98,41 +101,59 @@ public sealed class TodoViewModel : ViewModelBase
 
     private async Task AddTaskAsync()
     {
-        await _dataService.AddTodoAsync(new TodoItem
+        try
         {
-            Title = NewTaskTitle.Trim(),
-            Priority = SelectedPriority,
-            DueDate = NewTaskDueDate ?? DateTime.Today
-        });
+            await _dataService.AddTodoAsync(new TodoItem
+            {
+                Title = NewTaskTitle.Trim(),
+                Priority = SelectedPriority,
+                DueDate = NewTaskDueDate ?? DateTime.Today
+            });
 
-        NewTaskTitle = string.Empty;
-        NewTaskDueDate = DateTime.Today;
-        RefreshGroups();
-    }
-
-    private void ToggleTask(object? parameter)
-    {
-        if (parameter is TodoItem todo)
+            NewTaskTitle = string.Empty;
+            NewTaskDueDate = DateTime.Today;
+            RefreshGroups();
+        }
+        catch (Exception ex)
         {
-            _ = ToggleTaskAsync(todo);
+            _notifications.ShowError(UnwrapMessage(ex));
         }
     }
 
-    private async Task ToggleTaskAsync(TodoItem todo)
+    private static string UnwrapMessage(Exception ex) => ex is ServiceException se ? se.UserFacingMessage : "Something went wrong. Please try again.";
+
+    private async void ToggleTask(object? parameter)
     {
-        await _dataService.ToggleTodoAsync(todo);
-        RefreshGroups();
+        try
+        {
+            if (parameter is TodoItem todo)
+            {
+                await _dataService.ToggleTodoAsync(todo);
+                RefreshGroups();
+            }
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(UnwrapMessage(ex));
+        }
     }
 
     private async void DeleteTask(object? parameter)
     {
-        if (parameter is not TodoItem todo)
+        try
         {
-            return;
-        }
+            if (parameter is not TodoItem todo)
+            {
+                return;
+            }
 
-        await _dataService.DeleteTodoAsync(todo);
-        RefreshGroups();
+            await _dataService.DeleteTodoAsync(todo);
+            RefreshGroups();
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(UnwrapMessage(ex));
+        }
     }
 
     private void OnTodosChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshGroups();

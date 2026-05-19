@@ -114,7 +114,8 @@
 
                         <TextBlock Text="{Binding SelectedDateTitle}" Style="{StaticResource CaptionText}" Margin="0,0,0,10" />
                         <TextBlock Text="Event name" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NewEventTitle, UpdateSourceTrigger=PropertyChanged}" ToolTip="Example: Quiz deadline" Margin="0,0,0,8" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding NewEventTitle, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" ToolTip="e.g., Quiz deadline" Margin="0,0,0,0" />
+                        <TextBlock Text="e.g., Quiz deadline" Foreground="{StaticResource MutedInkBrush}" FontSize="11" Margin="4,0,0,8" />
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
@@ -122,15 +123,17 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Text="Category" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" Padding="12,8" />
+                                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" Padding="12,8" ToolTip="Categorize this event" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                 <TextBlock Text="Start time" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StartTimeText, UpdateSourceTrigger=PropertyChanged}" ToolTip="HH:mm" />
+                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StartTimeText, UpdateSourceTrigger=PropertyChanged}" MaxLength="5" ToolTip="HH:mm format" />
+                                <TextBlock Text="e.g., 14:30" Foreground="{StaticResource MutedInkBrush}" FontSize="11" Margin="4,0,0,0" />
                             </StackPanel>
                         </Grid>
                         <TextBlock Text="Notes" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                        <TextBox Style="{StaticResource InputBox}" Text="{Binding EventNotes, UpdateSourceTrigger=PropertyChanged}" ToolTip="Optional notes" Margin="0,0,0,12" />
+                        <TextBox Style="{StaticResource InputBox}" Text="{Binding EventNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="500" ToolTip="Optional notes" Margin="0,0,0,0" />
+                        <TextBlock Text="e.g., Bring calculators next session" Foreground="{StaticResource MutedInkBrush}" FontSize="11" Margin="4,0,0,12" />
                         <Button Content="Add event" Style="{StaticResource PrimaryButton}" Command="{Binding AddEventCommand}" HorizontalAlignment="Left" />
                     </StackPanel>
                 </Border>
@@ -150,9 +153,15 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding Category}" Style="{StaticResource CaptionText}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <Border Background="{Binding Category, Converter={StaticResource EventCategoryToBrushConverter}}" CornerRadius="8" Padding="8,3">
+                                                        <TextBlock Text="{Binding Category}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <TextBlock Text="{Binding StartTime, StringFormat={}{0:hh\:mm}}" Visibility="{Binding StartTime, Converter={StaticResource NullToVisibilityConverter}}" Foreground="{StaticResource MutedInkBrush}" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Notes}" Visibility="{Binding Notes, Converter={StaticResource NullToVisibilityConverter}}" Style="{StaticResource CaptionText}" Foreground="{StaticResource InkBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
                                             </StackPanel>
-                                            <Button Grid.Column="1" Content="Delete" Style="{StaticResource SoftButton}" Command="{Binding DataContext.DeleteEventCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Grid.Column="1" Content="Delete" Style="{StaticResource SoftButton}" Command="{Binding DataContext.DeleteEventCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" VerticalAlignment="Top" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

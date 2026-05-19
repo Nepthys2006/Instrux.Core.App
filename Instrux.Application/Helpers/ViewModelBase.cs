@@ -5,7 +5,23 @@ namespace Instrux.Application.Helpers;
 
 public abstract class ViewModelBase : INotifyPropertyChanged
 {
+    private string? _errorMessage;
+
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string? ErrorMessage
+    {
+        get => _errorMessage;
+        set
+        {
+            if (SetProperty(ref _errorMessage, value))
+            {
+                OnPropertyChanged(nameof(HasError));
+            }
+        }
+    }
+
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {

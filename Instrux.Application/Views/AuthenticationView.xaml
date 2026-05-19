@@ -40,16 +40,16 @@
 
                 <StackPanel Visibility="{Binding IsSignUp, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="Full name" Style="{StaticResource CaptionText}" />
-                    <TextBox Style="{StaticResource InputBox}" Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,12" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" MaxLength="100" ToolTip="Your full name (e.g., Juan Dela Cruz)" Margin="0,6,0,12" />
                     <TextBlock Text="Nickname" Style="{StaticResource CaptionText}" />
-                    <TextBox Style="{StaticResource InputBox}" Text="{Binding Nickname, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,12" />
+                    <TextBox Style="{StaticResource InputBox}" Text="{Binding Nickname, UpdateSourceTrigger=PropertyChanged}" MaxLength="50" ToolTip="A short name your students call you" Margin="0,6,0,12" />
                 </StackPanel>
 
                 <TextBlock Text="Email" Style="{StaticResource CaptionText}" />
-                <TextBox Style="{StaticResource InputBox}" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,12" />
+                <TextBox Style="{StaticResource InputBox}" Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" MaxLength="254" ToolTip="you@school.edu" Margin="0,6,0,12" />
 
                 <TextBlock Text="Password" Style="{StaticResource CaptionText}" />
-                <PasswordBox x:Name="PasswordInput" PasswordChanged="OnPasswordChanged" Style="{StaticResource PasswordInputBox}" Margin="0,6,0,18" />
+                <PasswordBox x:Name="PasswordInput" PasswordChanged="OnPasswordChanged" Style="{StaticResource PasswordInputBox}" MaxLength="128" ToolTip="At least 6 characters" Margin="0,6,0,18" />
 
                 <Border Background="{StaticResource DangerSoft}" CornerRadius="12" Padding="12" Margin="0,0,0,14" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}">
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" />

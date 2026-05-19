@@ -1,5 +1,6 @@
 using Instrux.Domain.Enums;
-using Instrux.Infrastructure.Data;
+using Instrux.Domain.Models;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Interfaces;
 using Instrux.Services.Mapping;
@@ -10,24 +11,28 @@ namespace Instrux.Services.Implementations;
 
 public sealed class GradeService : IGradeService
 {
-    private readonly InstruxDbContext _dbContext;
+    private readonly IRepository _repo;
 
-    public GradeService(InstruxDbContext dbContext)
+    public GradeService(IRepository repo)
     {
-        _dbContext = dbContext;
+        _repo = repo;
     }
 
-    public async Task<List<AssessmentDto>> GetAssessmentsAsync(int classId) => (await _dbContext.Assessments.Where(item => item.ClassId == classId).OrderBy(item => item.Date).ToListAsync()).Select(DtoMapper.ToDto).ToList();
+    public async Task<List<AssessmentDto>> GetAssessmentsAsync(int classId)
+    {
+        var items = await _repo.FindAsync<Assessment>(item => item.ClassId == classId);
+        return items.OrderBy(item => item.Date).Select(DtoMapper.ToDto).ToList();
+    }
 
-    public async Task<List<AssessmentDto>> GetAllAssessmentsAsync(int teacherId) => (await _dbContext.Assessments
-        .Where(item => _dbContext.Classes.Any(classItem => classItem.Id == item.ClassId && classItem.TeacherId == teacherId))
+    public async Task<List<AssessmentDto>> GetAllAssessmentsAsync(int teacherId) => (await _repo.Query<Assessment>()
+        .Where(item => _repo.Query<Class>().Any(classItem => classItem.Id == item.ClassId && classItem.TeacherId == teacherId))
         .ToListAsync())
         .Select(DtoMapper.ToDto)
         .ToList();
 
-    public async Task<List<ScoreDto>> GetAllScoresAsync(int teacherId) => (await _dbContext.Scores
-        .Where(score => _dbContext.Students.Any(student => student.Id == score.StudentId
-            && _dbContext.Classes.Any(classItem => classItem.Id == student.ClassId && classItem.TeacherId == teacherId)))
+    public async Task<List<ScoreDto>> GetAllScoresAsync(int teacherId) => (await _repo.Query<Score>()
+        .Where(score => _repo.Query<Student>().Any(student => student.Id == score.StudentId
+            && _repo.Query<Class>().Any(classItem => classItem.Id == student.ClassId && classItem.TeacherId == teacherId)))
         .ToListAsync())
         .Select(DtoMapper.ToDto)
         .ToList();
@@ -36,52 +41,53 @@ public sealed class GradeService : IGradeService
     {
         var entity = DtoMapper.ToEntity(assessment);
         entity.Id = 0;
-        _dbContext.Assessments.Add(entity);
-        await _dbContext.SaveChangesAsync();
+        _repo.Add(entity);
+        await _repo.SaveChangesAsync();
         return DtoMapper.ToDto(entity);
     }
 
     public async Task DeleteAssessmentAsync(int assessmentId)
     {
-        var scores = await _dbContext.Scores.Where(s => s.AssessmentId == assessmentId).ToListAsync();
-        _dbContext.Scores.RemoveRange(scores);
-        var assessment = await _dbContext.Assessments.FindAsync(assessmentId);
+        var scores = await _repo.FindAsync<Score>(s => s.AssessmentId == assessmentId);
+        _repo.DeleteRange(scores);
+        var assessment = await _repo.GetByIdAsync<Assessment>(assessmentId);
         if (assessment is not null)
         {
-            _dbContext.Assessments.Remove(assessment);
+            _repo.Delete(assessment);
         }
-        await _dbContext.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
     }
 
     public async Task<ScoreDto> UpdateScoreAsync(ScoreDto score)
     {
-        var entity = await _dbContext.Scores.FirstOrDefaultAsync(item => item.StudentId == score.StudentId && item.AssessmentId == score.AssessmentId);
+        var entity = await _repo.FirstOrDefaultAsync<Score>(item => item.StudentId == score.StudentId && item.AssessmentId == score.AssessmentId);
         if (entity is null)
         {
-            entity = new Domain.Models.Score { StudentId = score.StudentId, AssessmentId = score.AssessmentId };
-            _dbContext.Scores.Add(entity);
+            entity = new Score { StudentId = score.StudentId, AssessmentId = score.AssessmentId };
+            _repo.Add(entity);
         }
 
         entity.Value = score.Value;
-        await _dbContext.SaveChangesAsync();
+        await _repo.SaveChangesAsync();
         return DtoMapper.ToDto(entity);
     }
 
     public async Task<List<GradeBookRowDto>> GetGradeBookAsync(int classId)
     {
-        var classItem = await _dbContext.Classes.FindAsync(classId);
+        var classItem = await _repo.GetByIdAsync<Class>(classId);
         if (classItem is null)
         {
             return [];
         }
 
         var config = GradingSystemResolver.GetWeightsForSubject(classItem.Subject);
-        var students = await _dbContext.Students.Where(item => item.ClassId == classId).OrderBy(item => item.FullName).ToListAsync();
-        var assessments = await _dbContext.Assessments.Where(item => item.ClassId == classId).ToListAsync();
+        var students = await _repo.FindAsync<Student>(item => item.ClassId == classId);
+        var orderedStudents = students.OrderBy(item => item.FullName).ToList();
+        var assessments = await _repo.FindAsync<Assessment>(item => item.ClassId == classId);
         var assessmentIds = assessments.Select(item => item.Id).ToList();
-        var scores = await _dbContext.Scores.Where(item => assessmentIds.Contains(item.AssessmentId)).ToListAsync();
+        var scores = await _repo.FindAsync<Score>(item => assessmentIds.Contains(item.AssessmentId));
 
-        return students.Select(student =>
+        return orderedStudents.Select(student =>
         {
             var studentScores = scores.Where(score => score.StudentId == student.Id).ToList();
             var ww = AverageCategory(AssessmentType.Quiz, assessments, studentScores);
@@ -93,7 +99,7 @@ public sealed class GradeService : IGradeService
         }).ToList();
     }
 
-    private static decimal AverageCategory(AssessmentType type, IReadOnlyCollection<Domain.Models.Assessment> assessments, IReadOnlyCollection<Domain.Models.Score> scores)
+    private static decimal AverageCategory(AssessmentType type, IReadOnlyCollection<Assessment> assessments, IReadOnlyCollection<Score> scores)
     {
         var percentages = assessments
             .Where(assessment => assessment.Type == type)

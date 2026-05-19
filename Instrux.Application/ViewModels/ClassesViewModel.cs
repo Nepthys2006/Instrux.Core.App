@@ -8,6 +8,7 @@ using Instrux.Application.Helpers;
 using Instrux.Application.Services;
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
+using Instrux.Services.Exceptions;
 using Microsoft.Win32;
 
 namespace Instrux.Application.ViewModels;
@@ -15,39 +16,40 @@ namespace Instrux.Application.ViewModels;
 public sealed class ClassesViewModel : ViewModelBase
 {
     private readonly DataService _dataService;
+    private readonly NotificationService _notifications;
     private Class? _selectedClass;
     private string _newClassName = string.Empty;
     private string _newClassSection = string.Empty;
     private Subject _selectedSubject = Subject.Mathematics;
     private string _classSearch = string.Empty;
-    private string _studentSearch = string.Empty;
     private string _newStudentName = string.Empty;
     private DateTime _attendanceDate = DateTime.Today;
     private string _newAssessmentName = string.Empty;
     private AssessmentType _newAssessmentType = AssessmentType.Quiz;
     private decimal _newAssessmentMaxScore = 50;
 
-    public ClassesViewModel(DataService dataService)
+    public ClassesViewModel(DataService dataService, NotificationService notificationService)
     {
         _dataService = dataService;
+        _notifications = notificationService;
         Classes = dataService.Classes;
         Subjects = Enum.GetValues<Subject>();
         AssessmentTypes = Enum.GetValues<AssessmentType>();
         SelectedClass = Classes.FirstOrDefault();
 
-        CreateClassCommand = new RelayCommandAsync(CreateClassAsync, () => !string.IsNullOrWhiteSpace(NewClassName));
-        DeleteClassCommand = new RelayCommandAsync(DeleteClassAsync, () => SelectedClass is not null);
-        AddStudentCommand = new RelayCommandAsync(AddStudentAsync, () => SelectedClass is not null && !string.IsNullOrWhiteSpace(NewStudentName));
-        DeleteStudentCommand = new RelayCommand(DeleteStudent);
-        MarkPresentCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Present));
-        MarkLateCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Late));
-        MarkAbsentCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Absent));
-        MarkExcusedCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Excused));
-        AddAssessmentCommand = new RelayCommandAsync(AddAssessmentAsync, () => SelectedClass is not null && !string.IsNullOrWhiteSpace(NewAssessmentName) && NewAssessmentMaxScore > 0);
-        DeleteAssessmentCommand = new RelayCommand(DeleteAssessment);
-        UploadContentCommand = new RelayCommandAsync(UploadContentAsync, () => SelectedClass is not null);
-        DeleteContentCommand = new RelayCommand(DeleteContent);
-        OpenContentCommand = new RelayCommand(OpenContent);
+        CreateClassCommand = new RelayCommandAsync(CreateClassAsync, () => !string.IsNullOrWhiteSpace(NewClassName), ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteClassCommand = new RelayCommandAsync(DeleteClassAsync, () => SelectedClass is not null, ex => _notifications.ShowError(UnwrapMessage(ex)));
+        AddStudentCommand = new RelayCommandAsync(AddStudentAsync, () => SelectedClass is not null && !string.IsNullOrWhiteSpace(NewStudentName), ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteStudentCommand = new RelayCommand(DeleteStudent, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        MarkPresentCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Present), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        MarkLateCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Late), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        MarkAbsentCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Absent), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        MarkExcusedCommand = new RelayCommand(parameter => MarkAttendance(parameter, AttendanceStatus.Excused), onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        AddAssessmentCommand = new RelayCommandAsync(AddAssessmentAsync, () => SelectedClass is not null && !string.IsNullOrWhiteSpace(NewAssessmentName) && NewAssessmentMaxScore > 0, ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteAssessmentCommand = new RelayCommand(DeleteAssessment, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        UploadContentCommand = new RelayCommandAsync(UploadContentAsync, () => SelectedClass is not null, ex => _notifications.ShowError(UnwrapMessage(ex)));
+        DeleteContentCommand = new RelayCommand(DeleteContent, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
+        OpenContentCommand = new RelayCommand(OpenContent, onError: ex => _notifications.ShowError(UnwrapMessage(ex)));
 
         _dataService.Students.CollectionChanged += OnSharedClassDataChanged;
         _dataService.Assessments.CollectionChanged += OnSharedClassDataChanged;
@@ -131,18 +133,6 @@ public sealed class ClassesViewModel : ViewModelBase
         }
     }
 
-    public string StudentSearch
-    {
-        get => _studentSearch;
-        set
-        {
-            if (SetProperty(ref _studentSearch, value))
-            {
-                RefreshStudents();
-            }
-        }
-    }
-
     public string NewStudentName
     {
         get => _newStudentName;
@@ -190,7 +180,8 @@ public sealed class ClassesViewModel : ViewModelBase
         get => _newAssessmentMaxScore;
         set
         {
-            if (SetProperty(ref _newAssessmentMaxScore, value))
+            var clamped = Math.Clamp(value, 1, 1000);
+            if (SetProperty(ref _newAssessmentMaxScore, clamped))
             {
                 RaiseCommandStates();
             }
@@ -258,19 +249,39 @@ public sealed class ClassesViewModel : ViewModelBase
 
     private async void DeleteStudent(object? parameter)
     {
-        if (parameter is not StudentRosterViewModel row)
+        try
         {
-            return;
-        }
+            if (parameter is not StudentRosterViewModel row)
+            {
+                return;
+            }
 
-        var result = MessageBox.Show($"Delete {row.Student.FullName} from the roster?", "Delete student", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes)
+            var result = MessageBox.Show($"Delete {row.Student.FullName} from the roster?", "Delete student", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            await _dataService.DeleteStudentAsync(row.Student);
+            RefreshClassWorkspace();
+        }
+        catch (Exception ex)
         {
-            return;
+            _notifications.ShowError(UnwrapMessage(ex));
         }
+    }
 
-        await _dataService.DeleteStudentAsync(row.Student);
-        RefreshClassWorkspace();
+    private async void MarkAttendanceAsync(AttendanceStudentViewModel row, AttendanceStatus status)
+    {
+        try
+        {
+            await _dataService.SaveAttendanceRecordAsync(row.Student.Id, AttendanceDate, status);
+            RefreshRosterAttendanceCounts();
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(UnwrapMessage(ex));
+        }
     }
 
     private void MarkAttendance(object? parameter, AttendanceStatus status)
@@ -281,7 +292,7 @@ public sealed class ClassesViewModel : ViewModelBase
         }
 
         row.Status = status;
-        _ = _dataService.SaveAttendanceRecordAsync(row.Student.Id, AttendanceDate, status);
+        MarkAttendanceAsync(row, status);
     }
 
     private async Task AddAssessmentAsync()
@@ -312,19 +323,26 @@ public sealed class ClassesViewModel : ViewModelBase
 
     private async void DeleteAssessment(object? parameter)
     {
-        if (parameter is not Assessment assessment)
+        try
         {
-            return;
-        }
+            if (parameter is not Assessment assessment)
+            {
+                return;
+            }
 
-        var result = MessageBox.Show($"Delete \"{assessment.Name}\"? This removes all scores for this assessment.", "Delete assessment", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes)
+            var result = MessageBox.Show($"Delete \"{assessment.Name}\"? This removes all scores for this assessment.", "Delete assessment", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            await _dataService.DeleteAssessmentAsync(assessment);
+            RefreshClassWorkspace();
+        }
+        catch (Exception ex)
         {
-            return;
+            _notifications.ShowError(UnwrapMessage(ex));
         }
-
-        await _dataService.DeleteAssessmentAsync(assessment);
-        RefreshClassWorkspace();
     }
 
     private async Task UploadContentAsync()
@@ -368,36 +386,45 @@ public sealed class ClassesViewModel : ViewModelBase
         RefreshClassWorkspace();
     }
 
-    private void DeleteContent(object? parameter)
+    private async void DeleteContent(object? parameter)
     {
-        _ = DeleteContentAsync(parameter);
-    }
-
-    private async Task DeleteContentAsync(object? parameter)
-    {
-        if (parameter is not ContentItem content)
+        try
         {
-            return;
-        }
+            if (parameter is not ContentItem content)
+            {
+                return;
+            }
 
-        await _dataService.DeleteContentItemAsync(content);
-        ContentItems.Remove(content);
+            await _dataService.DeleteContentItemAsync(content);
+            ContentItems.Remove(content);
+        }
+        catch (Exception ex)
+        {
+            _notifications.ShowError(UnwrapMessage(ex));
+        }
     }
 
     private void OpenContent(object? parameter)
     {
-        if (parameter is not ContentItem content || string.IsNullOrWhiteSpace(content.FilePath))
+        try
         {
-            return;
-        }
+            if (parameter is not ContentItem content || string.IsNullOrWhiteSpace(content.FilePath))
+            {
+                return;
+            }
 
-        if (!File.Exists(content.FilePath))
+            if (!File.Exists(content.FilePath))
+            {
+                _notifications.ShowInfo("The file could not be found on this device.");
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(content.FilePath) { UseShellExecute = true });
+        }
+        catch (Exception ex)
         {
-            MessageBox.Show("The file could not be found on this device.", "Open content", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
+            _notifications.ShowError(UnwrapMessage(ex));
         }
-
-        Process.Start(new ProcessStartInfo(content.FilePath) { UseShellExecute = true });
     }
 
     private void RefreshClassWorkspace()
@@ -412,7 +439,12 @@ public sealed class ClassesViewModel : ViewModelBase
             return;
         }
 
-        RefreshStudents();
+        foreach (var student in _dataService.GetStudentsForClass(SelectedClass.Id)
+            .Where(item => MatchesFilter(item))
+            .OrderBy(item => item.FullName))
+        {
+            Students.Add(new StudentRosterViewModel(student, _dataService.Attendance.ToList()));
+        }
 
         foreach (var assessment in _dataService.GetAssessmentsForClass(SelectedClass.Id).OrderBy(item => item.Date).ThenBy(item => item.Id))
         {
@@ -428,33 +460,19 @@ public sealed class ClassesViewModel : ViewModelBase
         RefreshAttendance();
     }
 
-    private void RefreshStudents()
+    private bool MatchesFilter(Student student)
     {
-        Students.Clear();
-        if (SelectedClass is null)
-        {
-            return;
-        }
+        var search = string.IsNullOrWhiteSpace(ClassSearch) ? null : ClassSearch;
+        return search is null || MatchesStudent(student, search);
+    }
 
+    private void RefreshRosterAttendanceCounts()
+    {
         var allRecords = _dataService.Attendance.ToList();
-        var query = _dataService.GetStudentsForClass(SelectedClass.Id);
-        if (!string.IsNullOrWhiteSpace(ClassSearch))
+        foreach (var row in Students)
         {
-            query = query.Where(item => MatchesStudent(item, ClassSearch));
+            row.ComputeAttendance(allRecords);
         }
-
-        if (!string.IsNullOrWhiteSpace(StudentSearch))
-        {
-            query = query.Where(item => MatchesStudent(item, StudentSearch));
-        }
-
-        foreach (var student in query.OrderBy(item => item.FullName))
-        {
-            Students.Add(new StudentRosterViewModel(student, allRecords));
-        }
-
-        RefreshGrades();
-        RefreshAttendance();
     }
 
     private static bool MatchesStudent(Student student, string searchText) =>
@@ -474,8 +492,16 @@ public sealed class ClassesViewModel : ViewModelBase
                 var score = _dataService.Scores.FirstOrDefault(item => item.StudentId == student.Id && item.AssessmentId == assessment.Id);
                 row.Cells.Add(new GradeCellViewModel(assessment, score?.Value, async cell =>
                 {
-                    await _dataService.SaveScoreAsync(row.Student.Id, cell.AssessmentId, cell.Value);
-                    RecomputeGrade(row);
+                    try
+                    {
+                        decimal? clamped = cell.Value.HasValue ? Math.Clamp(cell.Value.Value, 0, cell.MaxScore) : null;
+                        await _dataService.SaveScoreAsync(row.Student.Id, cell.AssessmentId, clamped);
+                        RecomputeGrade(row);
+                    }
+                    catch (Exception ex)
+                    {
+                        _notifications.ShowError(UnwrapMessage(ex));
+                    }
                 }));
             }
 
@@ -512,6 +538,8 @@ public sealed class ClassesViewModel : ViewModelBase
             AttendanceRows.Add(new AttendanceStudentViewModel(student, existing?.Status ?? AttendanceStatus.Present));
         }
     }
+
+    private static string UnwrapMessage(Exception ex) => ex is ServiceException se ? se.UserFacingMessage : "Something went wrong. Please try again.";
 
     private void RaiseCommandStates()
     {

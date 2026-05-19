@@ -1,6 +1,7 @@
 using Instrux.Domain.Enums;
 using Instrux.Domain.Models;
 using Instrux.Infrastructure.Data;
+using Instrux.Infrastructure.Repositories;
 using Instrux.Services.DTOs;
 using Instrux.Services.Implementations;
 
@@ -17,7 +18,7 @@ public sealed class GradeServiceTests : IDisposable
     public GradeServiceTests()
     {
         _context = InMemoryDbContextFactory.Create();
-        _service = new GradeService(_context);
+        _service = new GradeService(new Repository(_context));
         _teacher = InMemoryDbContextFactory.CreateTeacher(_context);
         _class = InMemoryDbContextFactory.CreateClass(_context, _teacher.Id, Subject.Mathematics);
         _student = InMemoryDbContextFactory.CreateStudent(_context, _class.Id);
