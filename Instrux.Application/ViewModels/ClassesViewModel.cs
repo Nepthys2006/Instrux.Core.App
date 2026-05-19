@@ -22,8 +22,6 @@ public sealed class ClassesViewModel : ViewModelBase
     private string _classSearch = string.Empty;
     private string _studentSearch = string.Empty;
     private string _newStudentName = string.Empty;
-    private string _newStudentId = string.Empty;
-    private string _newStudentEmail = string.Empty;
     private DateTime _attendanceDate = DateTime.Today;
     private string _newAssessmentName = string.Empty;
     private AssessmentType _newAssessmentType = AssessmentType.Quiz;
@@ -58,7 +56,7 @@ public sealed class ClassesViewModel : ViewModelBase
     }
 
     public ObservableCollection<Class> Classes { get; }
-    public ObservableCollection<Student> Students { get; } = [];
+    public ObservableCollection<StudentRosterViewModel> Students { get; } = [];
     public ObservableCollection<AttendanceStudentViewModel> AttendanceRows { get; } = [];
     public ObservableCollection<Assessment> Assessments { get; } = [];
     public ObservableCollection<GradeBookRowViewModel> GradeRows { get; } = [];
@@ -157,18 +155,6 @@ public sealed class ClassesViewModel : ViewModelBase
         }
     }
 
-    public string NewStudentId
-    {
-        get => _newStudentId;
-        set => SetProperty(ref _newStudentId, value);
-    }
-
-    public string NewStudentEmail
-    {
-        get => _newStudentEmail;
-        set => SetProperty(ref _newStudentEmail, value);
-    }
-
     public DateTime AttendanceDate
     {
         get => _attendanceDate;
@@ -262,31 +248,28 @@ public sealed class ClassesViewModel : ViewModelBase
         await _dataService.AddStudentAsync(new Student
         {
             FullName = NewStudentName.Trim(),
-            StudentId = string.IsNullOrWhiteSpace(NewStudentId) ? $"STU-{DateTime.Now:HHmmss}" : NewStudentId.Trim(),
-            Email = string.IsNullOrWhiteSpace(NewStudentEmail) ? null : NewStudentEmail.Trim(),
+            StudentId = $"STU-{DateTime.Now:HHmmss}",
             ClassId = SelectedClass.Id
         });
 
         NewStudentName = string.Empty;
-        NewStudentId = string.Empty;
-        NewStudentEmail = string.Empty;
         RefreshClassWorkspace();
     }
 
     private async void DeleteStudent(object? parameter)
     {
-        if (parameter is not Student student)
+        if (parameter is not StudentRosterViewModel row)
         {
             return;
         }
 
-        var result = MessageBox.Show($"Delete {student.FullName} from the roster?", "Delete student", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        var result = MessageBox.Show($"Delete {row.Student.FullName} from the roster?", "Delete student", MessageBoxButton.YesNo, MessageBoxImage.Warning);
         if (result != MessageBoxResult.Yes)
         {
             return;
         }
 
-        await _dataService.DeleteStudentAsync(student);
+        await _dataService.DeleteStudentAsync(row.Student);
         RefreshClassWorkspace();
     }
 
@@ -453,6 +436,7 @@ public sealed class ClassesViewModel : ViewModelBase
             return;
         }
 
+        var allRecords = _dataService.Attendance.ToList();
         var query = _dataService.GetStudentsForClass(SelectedClass.Id);
         if (!string.IsNullOrWhiteSpace(ClassSearch))
         {
@@ -466,7 +450,7 @@ public sealed class ClassesViewModel : ViewModelBase
 
         foreach (var student in query.OrderBy(item => item.FullName))
         {
-            Students.Add(student);
+            Students.Add(new StudentRosterViewModel(student, allRecords));
         }
 
         RefreshGrades();
@@ -474,17 +458,16 @@ public sealed class ClassesViewModel : ViewModelBase
     }
 
     private static bool MatchesStudent(Student student, string searchText) =>
-        student.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase)
-        || student.StudentId.Contains(searchText, StringComparison.OrdinalIgnoreCase)
-        || (student.Email?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false);
+        student.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase);
 
     private void OnSharedClassDataChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshClassWorkspace();
 
     private void RefreshGrades()
     {
         GradeRows.Clear();
-        foreach (var student in Students)
+        foreach (var rowVm in Students)
         {
+            var student = rowVm.Student;
             var row = new GradeBookRowViewModel { Student = student };
             foreach (var assessment in Assessments)
             {
@@ -522,8 +505,9 @@ public sealed class ClassesViewModel : ViewModelBase
     private void RefreshAttendance()
     {
         AttendanceRows.Clear();
-        foreach (var student in Students)
+        foreach (var rowVm in Students)
         {
+            var student = rowVm.Student;
             var existing = _dataService.Attendance.FirstOrDefault(item => item.StudentId == student.Id && item.Date.Date == AttendanceDate.Date);
             AttendanceRows.Add(new AttendanceStudentViewModel(student, existing?.Status ?? AttendanceStatus.Present));
         }

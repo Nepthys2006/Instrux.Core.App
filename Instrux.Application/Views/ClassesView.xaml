@@ -123,36 +123,29 @@
 
                             <StackPanel Margin="0,0,0,12">
                                 <TextBlock Text="Find designated student" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" ToolTip="Search roster by student name or ID" />
+                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StudentSearch, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" ToolTip="Search roster by student name" />
                             </StackPanel>
 
                             <Grid Grid.Row="1" Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="Student full name" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentName, UpdateSourceTrigger=PropertyChanged}" MinWidth="180" ToolTip="Example: Juan Dela Cruz" />
+                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentName, UpdateSourceTrigger=PropertyChanged}" MinWidth="280" ToolTip="Example: Juan Dela Cruz" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                    <TextBlock Text="Student ID" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentId, UpdateSourceTrigger=PropertyChanged}" ToolTip="Example: STU-1001" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                                    <TextBlock Text="Email" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                    <TextBox Style="{StaticResource InputBox}" Text="{Binding NewStudentEmail, UpdateSourceTrigger=PropertyChanged}" ToolTip="Example: student@email.com" />
-                                </StackPanel>
-                                <Button Grid.Column="3" Content="Add" Style="{StaticResource PrimaryButton}" Command="{Binding AddStudentCommand}" Margin="10,0,0,0" />
+                                <Button Grid.Column="1" Content="Add" Style="{StaticResource PrimaryButton}" Command="{Binding AddStudentCommand}" Margin="10,0,0,0" />
                             </Grid>
 
                             <DataGrid Grid.Row="2" ItemsSource="{Binding Students}" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column" BorderThickness="0" RowHeight="54" HorizontalScrollBarVisibility="Auto">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="2*" />
-                                    <DataGridTextColumn Header="Student ID" Binding="{Binding StudentId}" Width="*" />
-                                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="2*" />
+                                    <DataGridTextColumn Header="Name" Binding="{Binding Student.FullName}" Width="*" />
+                                    <DataGridTextColumn Header="Total Attendance" Binding="{Binding TotalAttendance}" Width="105" />
+                                    <DataGridTextColumn Header="Present" Binding="{Binding TotalPresent}" Width="80" />
+                                    <DataGridTextColumn Header="Late" Binding="{Binding TotalLate}" Width="70" />
+                                    <DataGridTextColumn Header="Absences" Binding="{Binding TotalAbsences}" Width="90" />
+                                    <DataGridTextColumn Header="Excused" Binding="{Binding TotalExcused}" Width="90" />
                                     <DataGridTemplateColumn Header="Action" Width="125">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
