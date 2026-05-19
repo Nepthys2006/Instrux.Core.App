@@ -4,7 +4,96 @@ A WPF desktop application built for teachers to manage attendance, grades, mater
 
 ---
 
-## Architecture
+## 3. Requirements Analysis
+
+### Functional Requirements
+
+The system must support the following capabilities for authenticated teachers:
+
+| ID | Requirement | Description |
+|---|---|---|
+| FR-01 | Teacher Authentication | Register a new account and log in with email/password credentials |
+| FR-02 | Class Management | Create, view, and delete classes with DepEd subject assignment |
+| FR-03 | Student Roster | Add students to classes with name, student ID, and email; delete students |
+| FR-04 | Daily Attendance | Record attendance per student per date as Present, Late, Absent, or Excused with auto-save on click |
+| FR-05 | Assessment Creation | Create quizzes, activities, and exams per class with name, max score, and date |
+| FR-06 | Score Entry | Record and update individual student scores per assessment with inline editing |
+| FR-07 | Grade Computation | Compute weighted initial grades per DepEd Order No. 8, s. 2015 with standing thresholds |
+| FR-08 | Content Management | Upload and organize class materials (PDF, DOC, PPT, images, videos, links) |
+| FR-09 | Calendar Management | Create, view, and delete calendar events with category tagging |
+| FR-10 | To-Do List | Create, toggle completion, filter, and delete personal tasks with priority levels |
+| FR-11 | Profile Management | View and update teacher profile (name, nickname, email) |
+| FR-12 | Account Deletion | Permanently delete account and all associated data with full cascade |
+| FR-13 | Teacher Data Isolation | Each teacher's data (classes, students, grades, events, todos) is isolated from others |
+
+### Non-Functional Requirements
+
+| ID | Requirement | Target / Constraint |
+|---|---|---|
+| NFR-01 | Platform | Windows desktop only (WPF/.NET 10.0-windows) |
+| NFR-02 | Database | SQL Server LocalDB — single-user, locally installed |
+| NFR-03 | Performance | Grade computation completes in <50ms per class; UI remains responsive during service calls via async/await |
+| NFR-04 | Scalability | Single-teacher desktop application; no multi-tenancy or horizontal scaling |
+| NFR-05 | Security (known gap) | Passwords stored and compared as plaintext (bcrypt/Argon2 deferred) |
+| NFR-06 | Concurrency | Single-user; no concurrent write conflicts |
+| NFR-07 | Offline Capability | Fully offline — no network or internet dependency |
+| NFR-08 | Testability | Service layer fully testable via EF Core InMemory provider; 52 automated tests |
+| NFR-09 | UI Responsiveness | Minimum window 1040×680; all DB operations on background threads via async commands |
+| NFR-10 | Maintainability | 4-layer architecture with strict downward-only dependencies; manual DI registration |
+
+### Use Case Diagram
+
+```
+┌──────────────────────────────────────────────────────┐
+│                    Instrux System                     │
+│                                                       │
+│  ┌───────────────────────────────────────────────┐   │
+│  │                                               │   │
+│  │  ┌──────────────┐     ┌──────────────────┐   │   │
+│  │  │ Authenticate  │     │  Manage Classes  │   │   │
+│  │  │ (Login/Reg.)  │     │  (CRUD)          │   │   │
+│  │  └──────┬───────┘     └───────┬──────────┘   │   │
+│  │         │                     │               │   │
+│  │  ┌──────▼───────┐     ┌──────▼──────────┐   │   │
+│  │  │   Manage      │     │   Manage        │   │   │
+│  │  │   Students    │     │   Attendance    │   │   │
+│  │  └──────┬───────┘     └──────┬──────────┘   │   │
+│  │         │                     │               │   │
+│  │  ┌──────▼───────┐     ┌──────▼──────────┐   │   │
+│  │  │   Manage      │     │   Manage        │   │   │
+│  │  │   Assessments │     │   Scores/Grades │   │   │
+│  │  └──────┬───────┘     └──────┬──────────┘   │   │
+│  │         │                     │               │   │
+│  │  ┌──────▼───────┐     ┌──────▼──────────┐   │   │
+│  │  │   Manage      │     │   Manage        │   │   │
+│  │  │   Content     │     │   Calendar      │   │   │
+│  │  └──────┬───────┘     └──────┬──────────┘   │   │
+│  │         │                     │               │   │
+│  │  ┌──────▼───────┐     ┌──────▼──────────┐   │   │
+│  │  │   Manage      │     │   Manage        │   │   │
+│  │  │   To-Do List  │     │   Profile       │   │   │
+│  │  └──────┬───────┘     └──────┬──────────┘   │   │
+│  │         │                     │               │   │
+│  │         └──────┬─────────────┘               │   │
+│  │                │                              │   │
+│  │         ┌──────▼──────────┐                  │   │
+│  │         │   Delete        │                  │   │
+│  │         │   Account       │                  │   │
+│  │         └─────────────────┘                  │   │
+│  │                                               │   │
+│  └───────────────────────────────────────────────┘   │
+│                                                       │
+│              Actor: Teacher (Primary User)            │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+## 4. System Architecture
+
+### Architectural Pattern
+
+**4-Layer Architecture** with strict downward-only dependencies:
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -23,24 +112,11 @@ A WPF desktop application built for teachers to manage attendance, grades, mater
 └─────────────────────────────────────────────────────┘
 ```
 
-The application follows a **layered architecture** with strict dependency direction: `Application → Services → Infrastructure → Domain`. Each layer depends only on the layers below it.
+Each layer depends only on the layers below it. No layer has circular dependencies. The Domain layer has zero external package dependencies.
 
-### Key Patterns
+### Technology Stack
 
-| Pattern | Implementation |
-|---|---|
-| **DI** | `Microsoft.Extensions.DependencyInjection` via `Host.CreateDefaultBuilder` |
-| **Data access** | DbContext injected directly into service implementations (no Repository pattern) |
-| **UI sync** | Singleton `DataService` holds `ObservableCollection<T>` — ViewModels bind to it |
-| **Mapping** | Manual static `DtoMapper.cs` (no AutoMapper) |
-| **Async** | `RelayCommandAsync` for all service calls |
-| **Navigation** | Manual view swapping via `MainDashboardViewModel.CurrentPage` |
-
----
-
-## Tech Stack
-
-| Layer | Technology | Version |
+| Component | Technology | Version |
 |---|---|---|
 | **Language** | C# | 12.0 |
 | **Runtime** | .NET | 10.0 |
@@ -48,25 +124,154 @@ The application follows a **layered architecture** with strict dependency direct
 | **ORM** | Entity Framework Core | 10.0.8 |
 | **Database** | SQL Server LocalDB | — |
 | **DI Container** | Microsoft.Extensions.Hosting | 10.0.8 |
-| **UI Library** | MaterialDesignThemes | 5.3.2 |
+| **UI Component Library** | MaterialDesignThemes | 5.3.2 |
 | **SVG Rendering** | SharpVectors.Wpf | 1.8.5 |
 | **Configuration** | `appsettings.json` | — |
 
-### NuGet Packages
+**NuGet Packages:**
 
-| Package | Used In |
-|---|---|
-| `Microsoft.EntityFrameworkCore` | Infrastructure |
-| `Microsoft.EntityFrameworkCore.SqlServer` | Infrastructure |
-| `Microsoft.EntityFrameworkCore.Tools` | Infrastructure |
-| `Microsoft.Extensions.Configuration.Json` | Application |
-| `Microsoft.Extensions.Hosting` | Application |
-| `MaterialDesignThemes` | Application |
-| `SharpVectors.Wpf` | Application |
+| Package | Version | Used In |
+|---|---|---|
+| `Microsoft.EntityFrameworkCore` | 10.0.8 | Infrastructure |
+| `Microsoft.EntityFrameworkCore.SqlServer` | 10.0.8 | Infrastructure |
+| `Microsoft.EntityFrameworkCore.InMemory` | 10.0.8 | Tests |
+| `Microsoft.Extensions.Hosting` | 10.0.8 | Application |
+| `Microsoft.Extensions.Configuration.Json` | 10.0.8 | Application |
+| `MaterialDesignThemes` | 5.3.2 | Application |
+| `SharpVectors.Wpf` | 1.8.5 | Application |
+| `xUnit` | 2.9.3 | Tests |
+| `coverlet.collector` | 6.0.4 | Tests |
+
+### System Components
+
+The system comprises four major modules:
+
+| Module | Project | Responsibility |
+|---|---|---|
+| **Domain Models** | `Instrux.Domain` | Pure C# entities and enums — zero external dependencies |
+| **Data Access** | `Instrux.Infrastructure` | EF Core DbContext, fluent configurations, SQL Server LocalDB migrations |
+| **Business Logic** | `Instrux.Services` | 9 service interfaces + implementations, DTOs, manual mapping, DepEd grade computation |
+| **Presentation** | `Instrux.Application` | WPF UI with MVVM: 12 ViewModels, 6 Views, 2 Windows, singleton DataService + SessionService |
+
+**Communication flow:**
+
+```
+User Input → View (XAML) → ViewModel (RelayCommand) → DataService → Service → DbContext → LocalDB
+                                                                                              │
+User Output ← View (XAML) ← ViewModel (Binding) ← DataService ← ObservableCollection ←───────┘
+```
+
+All service calls are async. ViewModels use `RelayCommandAsync` which disables the button during execution. `DataService` wraps service responses and updates its `ObservableCollection<T>` collections, triggering automatic UI updates via WPF data binding.
 
 ---
 
-## Database Schema
+## 5. Detailed Design
+
+### Design Patterns
+
+The following design patterns were explicitly chosen to solve specific architectural problems:
+
+| Pattern | Location | Rationale |
+|---|---|---|
+| **Layered Architecture** | Overall solution | Separates concerns into 4 strict layers (Domain → Infrastructure → Services → Application). Enables testability — services can be tested with InMemory DB without UI dependencies. |
+| **Singleton** | All services, `DataService`, `SessionService` (registered via `AddSingleton<>`) | Single teacher desktop app — exactly one instance of each service and data hub needed. `DataService` holds all `ObservableCollection<T>` state shared across ViewModels. |
+| **MVVM** | `ViewModelBase` → 12 ViewModels → 6 Views | WPF's native data binding pattern. ViewModels expose `INotifyPropertyChanged` properties; XAML Views bind declaratively. No code-behind logic. |
+| **Command** | `RelayCommand` / `RelayCommandAsync` | Encapsulates user actions as `ICommand` objects. `RelayCommandAsync` tracks execution state and disables buttons during async DB operations to prevent double-submits. |
+| **Observer** | `INotifyPropertyChanged` + `ObservableCollection.CollectionChanged` | ViewModels subscribe to `DataService` collections. When a service call mutates data, the collection fires change events and the UI re-renders automatically. |
+| **Static Factory** | `GradingConfig.FromSubject()` | Maps each `Subject` enum value to the correct weight group (LanguagesSocialSciences, MathScience, SkillsArts) with the appropriate WW/PT/QA percentages. Pure function — no state needed. |
+| **Upsert** | `AttendanceService.SaveRecordAsync()`, `GradeService.UpdateScoreAsync()` | Avoids duplicate key exceptions: queries for existing `(StudentId, Date)` or `(StudentId, AssessmentId)` pair; creates new entity if not found, updates existing if found. |
+| **Mediator** | `DataService` | Central hub decoupling ViewModels from service layer. ViewModels call `DataService.AddClassAsync(...)`, never `IClassService` directly. DataService coordinates service calls and collection updates. |
+
+### Class Diagrams
+
+**Service Layer Interfaces and Implementations:**
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                  IService Interfaces                     │
+├─────────────────────────────────────────────────────────┤
+│  IAuthenticationService  ←── AuthenticationService      │
+│  IClassService           ←── ClassService               │
+│  IStudentService         ←── StudentService             │
+│  IAttendanceService      ←── AttendanceService          │
+│  IGradeService           ←── GradeService               │
+│  ITeacherService         ←── TeacherService             │
+│  ICalendarEventService   ←── CalendarEventService       │
+│  ITodoService            ←── TodoService                │
+│  IContentService         ←── ContentService             │
+│                                                          │
+│  All implement: sealed class                             │
+│  All inject: InstruxDbContext                            │
+│  All registered as: Singleton                            │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Domain Entity Relationships:**
+
+```
+Teacher (1) ──────────── (N) Class       Teacher (1) ─── (N) CalendarEvent
+  │                               │         Teacher (1) ─── (N) TodoItem
+  │                               │
+  │                        Class (1) ─── (N) Assessment
+  │                               │         │
+  │                               │    Assessment (1) ─── (N) Score
+  │                               │
+  │                        Class (1) ─── (N) Student
+  │                                         │
+  │                                    Student (1) ─── (N) AttendanceRecord
+  │                                         │
+  │                                    Student (1) ─── (N) Score
+  │
+  │                        Class (1) ─── (N) ContentItem
+```
+
+**ViewModel Hierarchy:**
+
+```
+ViewModelBase (abstract)
+├── AuthenticationViewModel
+├── MainDashboardViewModel
+│   ├── DashboardViewModel
+│   ├── ClassesViewModel
+│   │   ├── StudentRosterViewModel
+│   │   ├── AttendanceStudentViewModel
+│   │   └── GradeBookRowViewModel
+│   ├── CalendarViewModel
+│   │   └── CalendarDayViewModel
+│   ├── TodoViewModel
+│   └── SettingsViewModel
+└── NavigationItemViewModel
+```
+
+**App Startup / DI Wiring:**
+
+```
+Host.CreateDefaultBuilder()
+  └── services.AddSingleton<InstruxDbContext>()
+  └── services.AddSingleton<IAuthenticationService, AuthenticationService>()
+  └── services.AddSingleton<IClassService, ClassService>()
+  └── services.AddSingleton<IStudentService, StudentService>()
+  └── services.AddSingleton<IAttendanceService, AttendanceService>()
+  └── services.AddSingleton<IGradeService, GradeService>()
+  └── services.AddSingleton<ITeacherService, TeacherService>()
+  └── services.AddSingleton<ICalendarEventService, CalendarEventService>()
+  └── services.AddSingleton<ITodoService, TodoService>()
+  └── services.AddSingleton<IContentService, ContentService>()
+  └── services.AddSingleton<SessionService>()
+  └── services.AddSingleton<DataService>()
+  └── services.AddTransient<MainDashboardViewModel>()
+  └── services.AddTransient<...>()   (all 12 ViewModels as transient)
+  └── dbContext.Database.MigrateAsync()
+  └── RunAuthenticationFlowAsync()
+       ├── Show AuthenticationWindow (modal)
+       ├── On success → DataService.InitializeAsync()
+       ├── Show MainWindow (modal)
+       └── On sign-out → loop back to AuthenticationWindow
+```
+
+### Database Schema
+
+All entities are mapped to SQL Server LocalDB via EF Core fluent configuration. Enums are stored as strings for readability.
 
 All entities are mapped to SQL Server LocalDB via EF Core fluent configuration. Enums are stored as strings for readability.
 
@@ -156,11 +361,11 @@ Implements **DepEd Order No. 8, s. 2015** with automatic weight assignment per s
 
 ### Subject Weight Table
 
-| Subject | WW | PT | QA |
-|---|---|---|---|
-| Mathematics, Science, English, Filipino, AralingPanlipunan | 20% | 60% | 20% |
-| MAPEH, ValuesEducation | 30% | 50% | 20% |
-| EdukasyonSaPagpapakatao | 40% | 40% | 20% |
+| Subject Group | Subjects | WW | PT | QA |
+|---|---|---|---|---|
+| Languages / Social Sciences | English, Filipino, AralingPanlipunan, EdukasyonSaPagpapakatao | 30% | 50% | 20% |
+| Math / Science | Mathematics, Science | 40% | 40% | 20% |
+| Skills / Arts | TLE, HomeEconomics, MAPEH | 20% | 60% | 20% |
 
 ---
 
