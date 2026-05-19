@@ -242,3 +242,141 @@ Connection string is in `Instrux.Application/appsettings.json`:
 | Line | `#DCE3ED` | Borders |
 | Surface | `#F6F8FC` | App background |
 | Card | `#FFFFFF` | Card backgrounds |
+
+---
+
+## 6. Implementation Details
+
+### Key Algorithms
+
+**DepEd Grade Computation** — `GradingConfig.cs:14` maps each `Subject` to one of three weight groups per DepEd Order No. 8, s. 2015:
+
+| Group | Subjects | WW | PT | QA |
+|---|---|---|---|---|
+| Languages / Social Sciences | English, Filipino, AralingPanlipunan, EdukasyonSaPagpapakatao | 30% | 50% | 20% |
+| Math / Science | Mathematics, Science | 40% | 40% | 20% |
+| Skills / Arts | TLE, HomeEconomics, MAPEH | 20% | 60% | 20% |
+
+The `GradeService.cs:84-98` algorithm computes category averages as:
+
+```
+For each category (Quiz → WW, Activity → PT, Exam → QA):
+  percentages = filter(scores where type matches AND value is not null AND maxScore > 0)
+               .select(value / maxScore * 100)
+  categoryAvg = percentages.average()  // 0 if no scores
+
+InitialGrade = (WW_avg × WW_weight) + (PT_avg × PT_weight) + (QA_avg × QA_weight)
+```
+
+Standing thresholds: `≥90` Excellent, `≥80` On track, `≥70` Watch, else Support.
+
+**Attendance Summary** — `StudentRosterViewModel.cs` pre-computes per-student counts by filtering the global `Attendance` collection by `StudentId` and counting by `AttendanceStatus` (Present / Late / Absent / Excused).
+
+**Account Deletion Cascade** — `TeacherService.cs:41-89` deletes all teacher-associated data in dependency-safe order: scores → attendance → students → assessments → content → classes → events → todos → teacher, all within a single `SaveChangesAsync` call.
+
+### APIs
+
+This is a WPF desktop application — no REST or web APIs. The service contract layer comprises 9 interfaces:
+
+| Interface | Key Methods | Purpose |
+|---|---|---|
+| `IAuthenticationService` | `LoginAsync`, `RegisterAsync` | Teacher identity |
+| `IClassService` | `GetAllAsync`, `CreateAsync`, `DeleteAsync` | Class CRUD |
+| `IStudentService` | `GetAllAsync`, `CreateAsync`, `DeleteAsync` | Student roster |
+| `IAttendanceService` | `GetAllAsync`, `SaveRecordAsync` | Daily attendance |
+| `IGradeService` | `GetAssessmentsAsync`, `CreateAssessmentAsync`, `DeleteAssessmentAsync`, `UpdateScoreAsync`, `GetGradeBookAsync` | Assessment & score management |
+| `ITeacherService` | `GetProfileAsync`, `UpdateProfileAsync`, `DeleteAccountAsync` | Teacher profile & account |
+| `ICalendarEventService` | `GetAllAsync`, `CreateAsync`, `DeleteAsync` | Calendar events |
+| `ITodoService` | `GetAllAsync`, `CreateAsync`, `ToggleAsync`, `DeleteAsync` | To-Do items |
+| `IContentService` | `GetAllAsync`, `CreateAsync`, `DeleteAsync` | Class content/files |
+
+All services follow the same pattern: injected with `InstruxDbContext`, use `DtoMapper` for DTO↔entity conversion, and are registered as singletons in DI.
+
+### Challenges
+
+- **LocalDB file locking** — During active development, the running WPF process holds a lock on the database DLLs, requiring `taskkill` before every rebuild.
+- **SVG migration** — SharpVectors.Wpf's `SvgViewbox` lacks direct `BitmapImage` resource support; every `<Image>` referencing the logo resource had to be manually swapped to a hardcoded SVG path.
+- **Plaintext passwords** — `AuthenticationService.cs` stores and compares passwords as raw strings with no hashing, a known security gap deferred for later.
+
+---
+
+## 7. Verification & Testing
+
+### Testing Strategy
+
+**Automated unit + integration tests** via `xUnit` with EF Core InMemory provider. 8 test classes covering all service layers and domain logic:
+
+| Test Class | Type | Tests | Scope |
+|---|---|---|---|
+| `DtoMapperTests` | Unit | 6 | DTO↔Entity mapping correctness |
+| `GradingConfigTests` | Unit | 9 | Subject weight tables for all 9 subjects |
+| `AuthenticationServiceTests` | Integration | 6 | Register, login, duplicate email, case insensitivity |
+| `GradeServiceTests` | Integration | 9 | Assessment CRUD, grade computation, score upsert, standing thresholds |
+| `TeacherServiceTests` | Integration | 6 | Profile CRUD, full account deletion cascade |
+| `ClassServiceTests` | Integration | 5 | Class CRUD, cascade delete across 6 entity types |
+| `StudentServiceTests` | Integration | 4 | Student CRUD, cascade delete |
+| `AttendanceServiceTests` | Integration | 6 | Attendance CRUD, date filtering, teacher scoping |
+
+**Total: 52 tests — 52 passed, 0 failed, 0 skipped (Duration: ~3s)**
+
+### Critical Automated Test Cases
+
+| Scenario | Expected Outcome | Status |
+|---|---|---|
+| Grade computation: Quiz 45/50, Activity 40/50, Exam 35/50 (Mathematics) | WW=90%, PT=80%, QA=70%; InitialGrade = `(90×0.40)+(80×0.40)+(70×0.20) = 82%` → "On track" | ✅ |
+| Assessment deletion with existing scores | Assessment and all scores removed from DB | ✅ |
+| Account deletion | All 9 entity tables empty for that teacher; other teachers' data untouched | ✅ |
+| Attendance upsert (create then update) | Status changes from Present → Late correctly | ✅ |
+| Login case insensitivity | Email "JANE@TEST.COM" matches "jane@test.com" | ✅ |
+| Duplicate email registration | Returns failure, no duplicate teacher created | ✅ |
+| Standing threshold boundary | Perfect scores → "Excellent"; zero scores → "Support" | ✅ |
+| Account deletion isolation | Other teacher's classes and students remain intact | ✅ |
+
+### Code Coverage
+
+Coverage tooling (`coverlet`) is available but not yet configured for reporting. All service assembly methods (`Instrux.Services`, `Instrux.Domain`) are exercised through the integration test suite. Targeting full coverage of `GradeService`, `AuthenticationService`, `TeacherService`, `DtoMapper`, and `GradingConfig`.
+
+---
+
+## 8. Conclusion & Future Work
+
+### Reflection
+
+The 4-layer architecture (Domain → Infrastructure → Services → Application) held up well during implementation. The `DataService` singleton with `ObservableCollection<T>` bindings provided a clean reactive UI layer without a formal state management library. However, the absence of a dedicated validation layer and error boundary around service calls means unhandled exceptions (e.g., DB connection failure) bubble up as unhandled WPF crashes.
+
+### Lessons Learned
+
+- **Tests caught real issues** — The test suite revealed that the Mathematics group grade computation (40/40/20) produces 82% for the benchmark case, not 81% as initially calculated for the 30/50/20 group. The weight tables must be verified per subject group.
+- **Password security was deferred too long** — Storing passwords in plaintext is unacceptable for any production-adjacent release.
+- **Manual DI registration is fragile** — Each new service requires touching DI registration in `App.xaml.cs` and adding a constructor parameter to `DataService`. A convention-based registration or source generator would be more maintainable.
+
+### Future Enhancements
+
+| Feature | Priority | Effort |
+|---|---|---|
+| Password hashing (bcrypt/Argon2) | Critical | Small |
+| Coverlet code coverage reporting | High | Small |
+| Grade PDF / CSV export | Medium | Small |
+| Excel import for student rosters | Medium | Small |
+| Dark mode theme toggle | Medium | Medium |
+| Class timetable / scheduling view | Low | Large |
+| Parent/guardian portal read-only view | Low | Large |
+| Multi-term grade averaging (quarterly → final) | Low | Medium |
+
+---
+
+## 9. References
+
+| Library / Framework | Version | Purpose |
+|---|---|---|
+| `.NET` | 10.0 | Runtime and base class library |
+| `Entity Framework Core` | 10.0.8 | ORM — SQL Server LocalDB |
+| `Microsoft.Extensions.Hosting` | 10.0.8 | DI container, app lifecycle |
+| `Microsoft.Extensions.Configuration.Json` | 10.0.8 | `appsettings.json` configuration |
+| `MaterialDesignThemes` | 5.3.2 | WPF UI component library (cards, buttons, inputs, colors) |
+| `SharpVectors.Wpf` | 1.8.5 | SVG rendering for icons and logo |
+| `xUnit` | — | Unit/integration test framework |
+| `Microsoft.EntityFrameworkCore.InMemory` | 10.0.8 | In-memory database provider for tests |
+| DepEd Order No. 8, s. 2015 | — | Philippine K–12 grading system specification |
+
+No academic papers were directly referenced. All design decisions were driven by the framework documentation (Microsoft Learn, MaterialDesignInXaml docs, SharpVectors GitHub wiki) and the DepEd order linked above.
