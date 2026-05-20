@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Input;
 using Instrux.Application.Helpers;
@@ -121,13 +122,39 @@ public sealed class CalendarViewModel : ViewModelBase
 
     private async Task AddEventAsync()
     {
-        if (!string.IsNullOrWhiteSpace(StartTimeText) && !Regex.IsMatch(StartTimeText, @"^([01]\d|2[0-3]):[0-5]\d$"))
+        TimeSpan? startTime = null;
+
+        if (!string.IsNullOrWhiteSpace(StartTimeText))
         {
-            ErrorMessage = "Start time must be in HH:mm format (e.g., 14:30).";
-            return;
+            var trimmed = StartTimeText.Trim().ToUpperInvariant();
+            if (!Regex.IsMatch(trimmed, @"^((1[0-2]|0?[1-9]):[0-5]\d\s?(AM|PM)|([01]\d|2[0-3]):[0-5]\d)$"))
+            {
+                ErrorMessage = "Start time must be in HH:mm or h:mm AM/PM format (e.g., 14:30 or 2:30 PM).";
+                return;
+            }
+
+            TimeSpan? parsedTime = null;
+            if (trimmed.EndsWith("AM") || trimmed.EndsWith("PM"))
+            {
+                if (DateTime.TryParseExact(trimmed, ["h:mm tt", "hh:mm tt"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                {
+                    parsedTime = dt.TimeOfDay;
+                }
+            }
+            else
+            {
+                parsedTime = TimeSpan.TryParse(trimmed, out var ts) ? ts : null;
+            }
+
+            if (parsedTime is null)
+            {
+                ErrorMessage = "Could not parse the start time. Use HH:mm or h:mm AM/PM format.";
+                return;
+            }
+
+            startTime = parsedTime;
         }
 
-        var startTime = TimeSpan.TryParse(StartTimeText, out var parsed) ? parsed : (TimeSpan?)null;
         await _dataService.AddEventAsync(new CalendarEvent
         {
             Title = NewEventTitle.Trim(),

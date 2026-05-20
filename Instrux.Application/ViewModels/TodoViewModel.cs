@@ -103,6 +103,12 @@ public sealed class TodoViewModel : ViewModelBase
     {
         try
         {
+            if (NewTaskDueDate.HasValue && NewTaskDueDate.Value.Date < DateTime.Today)
+            {
+                ErrorMessage = "Due date cannot be in the past.";
+                return;
+            }
+
             await _dataService.AddTodoAsync(new TodoItem
             {
                 Title = NewTaskTitle.Trim(),
@@ -112,6 +118,7 @@ public sealed class TodoViewModel : ViewModelBase
 
             NewTaskTitle = string.Empty;
             NewTaskDueDate = DateTime.Today;
+            ErrorMessage = null;
             RefreshGroups();
         }
         catch (Exception ex)
@@ -167,7 +174,7 @@ public sealed class TodoViewModel : ViewModelBase
         }
 
         var filtered = query.ToList();
-        Replace(Today, filtered.Where(item => item.DueDate?.Date <= DateTime.Today && !item.IsCompleted).OrderByDescending(item => item.Priority).ThenBy(item => item.DueDate));
+        Replace(Today, filtered.Where(item => item.DueDate?.Date == DateTime.Today && !item.IsCompleted).OrderByDescending(item => item.Priority).ThenBy(item => item.DueDate));
         Replace(Upcoming, filtered.Where(item => item.DueDate?.Date > DateTime.Today && !item.IsCompleted).OrderBy(item => item.DueDate));
         Replace(Completed, filtered.Where(item => item.IsCompleted).OrderByDescending(item => item.CompletedAt));
     }

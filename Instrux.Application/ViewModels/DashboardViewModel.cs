@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Instrux.Application.Helpers;
 using Instrux.Application.Services;
 using Instrux.Domain.Models;
@@ -10,6 +11,7 @@ namespace Instrux.Application.ViewModels;
 public sealed class DashboardViewModel : ViewModelBase
 {
     private readonly DataService _dataService;
+    private readonly DispatcherTimer _refreshTimer;
 
     public DashboardViewModel(DataService dataService, SessionService sessionService)
     {
@@ -33,6 +35,10 @@ public sealed class DashboardViewModel : ViewModelBase
         dataService.Events.CollectionChanged += OnDataChanged;
         dataService.Todos.CollectionChanged += OnDataChanged;
         Refresh();
+
+        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+        _refreshTimer.Tick += (_, _) => Refresh();
+        _refreshTimer.Start();
     }
 
     public event EventHandler<Class>? OpenClassRequested;
@@ -46,7 +52,7 @@ public sealed class DashboardViewModel : ViewModelBase
 
     public int ClassCount => _dataService.Classes.Count;
     public int StudentCount => _dataService.Students.Count;
-    public int TasksDueToday => _dataService.Todos.Count(item => item.DueDate?.Date <= DateTime.Today && !item.IsCompleted);
+    public int TasksDueToday => _dataService.Todos.Count(item => item.DueDate?.Date == DateTime.Today && !item.IsCompleted);
     public int AttendanceMarkedToday => _dataService.Attendance.Count(item => item.Date.Date == DateTime.Today);
 
     private void OnDataChanged(object? sender, NotifyCollectionChangedEventArgs e) => Refresh();

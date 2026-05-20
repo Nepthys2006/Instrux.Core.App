@@ -127,8 +127,8 @@
                             </StackPanel>
                             <StackPanel Grid.Column="1" Margin="8,0,0,0">
                                 <TextBlock Text="Start time" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
-                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StartTimeText, UpdateSourceTrigger=PropertyChanged}" MaxLength="5" ToolTip="HH:mm format" />
-                                <TextBlock Text="e.g., 14:30" Foreground="{StaticResource MutedInkBrush}" FontSize="11" Margin="4,0,0,0" />
+                                <TextBox Style="{StaticResource InputBox}" Text="{Binding StartTimeText, UpdateSourceTrigger=PropertyChanged}" MaxLength="10" ToolTip="HH:mm or h:mm AM/PM format" />
+                                <TextBlock Text="e.g., 9:00 AM" Foreground="{StaticResource MutedInkBrush}" FontSize="11" Margin="4,0,0,0" />
                             </StackPanel>
                         </Grid>
                         <TextBlock Text="Notes" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
@@ -157,7 +157,7 @@
                                                     <Border Background="{Binding Category, Converter={StaticResource EventCategoryToBrushConverter}}" CornerRadius="8" Padding="8,3">
                                                         <TextBlock Text="{Binding Category}" Foreground="White" FontSize="12" FontWeight="SemiBold" />
                                                     </Border>
-                                                    <TextBlock Text="{Binding StartTime, StringFormat={}{0:hh\:mm}}" Visibility="{Binding StartTime, Converter={StaticResource NullToVisibilityConverter}}" Foreground="{StaticResource MutedInkBrush}" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                    <TextBlock Text="{Binding StartTime, StringFormat={}{0:h:mm tt}}" Visibility="{Binding StartTime, Converter={StaticResource NullToVisibilityConverter}}" Foreground="{StaticResource MutedInkBrush}" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0" />
                                                 </StackPanel>
                                                 <TextBlock Text="{Binding Notes}" Visibility="{Binding Notes, Converter={StaticResource NullToVisibilityConverter}}" Style="{StaticResource CaptionText}" Foreground="{StaticResource InkBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
                                             </StackPanel>
@@ -179,7 +179,10 @@
                                     <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,12" Margin="0,0,0,12">
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Date, StringFormat={}{0:dddd, MMM d}}" Style="{StaticResource CaptionText}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Date, StringFormat={}{0:dddd, MMM d}}" Style="{StaticResource CaptionText}" />
+                                                <TextBlock Text="{Binding StartTime, StringFormat={}{0:  ·  h:mm tt}}" Visibility="{Binding StartTime, Converter={StaticResource NullToVisibilityConverter}}" Style="{StaticResource CaptionText}" />
+                                            </StackPanel>
                                             <TextBlock Text="{Binding Category}" Style="{StaticResource CaptionText}" />
                                         </StackPanel>
                                     </Border>
