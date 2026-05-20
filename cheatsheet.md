@@ -25,6 +25,16 @@ Instrux.Domain        → Pure models + enums (zero dependencies)
 
 Strict downward-only dependencies. Domain has ZERO NuGet packages.
 
+**Instrux.Domain** — The innermost layer with zero external dependencies. Contains only pure C# entity classes and enums that model the real-world concepts (teachers, classes, students, grades) with no knowledge of databases or UI.
+
+**Instrux.Infrastructure** — The data access layer that bridges the domain models to SQL Server LocalDB via Entity Framework Core. Defines the DbContext, entity-to-table mappings via Fluent API, database migrations, and a generic repository pattern for CRUD operations.
+
+**Instrux.Services** — The business logic layer implementing all application features through 9 service interfaces and their implementations. Contains the DepEd grade computation algorithm, attendance upsert logic, account deletion cascade, DTOs for data transfer, and a static mapper for entity↔DTO conversion.
+
+**Instrux.Application** — The outermost WPF presentation layer that users interact with. Implements MVVM pattern with 13 ViewModels, 6 Views, converters, commands, and a central DataService that holds reactive ObservableCollections to keep the UI synchronized with the database.
+
+**Instrux.Tests** — The test project with 52 automated xUnit tests covering all service layers and domain logic. Uses EF Core InMemory provider to create isolated databases per test, ensuring no test dependencies and fast execution (~3 seconds).
+
 ---
 
 ## 3. TECH STACK
@@ -43,6 +53,8 @@ Strict downward-only dependencies. Domain has ZERO NuGet packages.
 ---
 
 ## 4. DATABASE — 10 TABLES
+
+The database uses SQL Server LocalDB with Entity Framework Core Code First — all schema is defined in C# configuration files and migrations, not raw SQL. Enums are stored as human-readable strings in the database (e.g., `"Present"` not `0`) for direct query readability, and unique composite indexes enforce business rules like one attendance record per student per day.
 
 ### Entity Relationships
 ```
@@ -74,6 +86,8 @@ Teacher ──1:N──> TodoItems (opt linked to Class)
 
 ## 5. ALL 8 ENUMS
 
+Enums provide type-safe fixed value sets used across the entire application — from subjects and attendance statuses to priorities and content types. They are stored as strings in the database for readability and used in switch expressions throughout the codebase for clean branching logic.
+
 | Enum | Values | Used In |
 |---|---|---|
 | **Subject** | English, Filipino, AralingPanlipunan, EdukasyonSaPagpapakatao, Mathematics, Science, TLE, HomeEconomics, MAPEH | Classes, GradingConfigs |
@@ -88,6 +102,8 @@ Teacher ──1:N──> TodoItems (opt linked to Class)
 ---
 
 ## 6. DEPed GRADE COMPUTATION (Core Algorithm)
+
+Implements **DepEd Order No. 8, s. 2015** — the Philippine K-12 grading system for Grades 7-10. Assessment types (Quiz/Activity/Exam) map to three weighted categories (Written Works, Performance Tasks, Quarterly Assessment) with percentages varying by subject group (Languages, Math/Science, or Skills/Arts).
 
 ### Weight Table (`GradingConfig.FromSubject()`)
 
@@ -127,6 +143,8 @@ InitialGrade = (90×0.40) + (80×0.40) + (70×0.20) = 36 + 32 + 14 = 82% → "On
 ---
 
 ## 7. ALL 9 SERVICE INTERFACES (The "API")
+
+These interfaces define the application's contract layer — what the system can do, independent of how it's implemented. Each interface is paired with a concrete implementation injected via DI, keeping the business logic swappable and testable with in-memory databases.
 
 | Interface | Key Methods | Purpose |
 |---|---|---|
@@ -174,6 +192,8 @@ For each student:
 ---
 
 ## 9. ALL 13 VIEWMODELS
+
+ViewModels are the heart of the MVVM pattern — they hold all UI state and commands, while Views are just passive XAML templates that bind to them. Every ViewModel inherits from `ViewModelBase` (which provides `INotifyPropertyChanged` and `SetProperty<T>`) and uses `RelayCommand`/`RelayCommandAsync` for button bindings with automatic CanExecute gating and error handling.
 
 | ViewModel | Lines | Role |
 |---|---|---|
@@ -235,6 +255,8 @@ Host.CreateDefaultBuilder()
 
 ## 12. TESTING — 52 Tests (All Passing)
 
+The project uses xUnit with EF Core InMemory provider for fast, isolated integration tests that run in ~3 seconds. Each test class gets a fresh database instance, and the shared `InMemoryDbContextFactory` seeds the required reference data (all 9 GradingConfig records) so tests can focus on business logic without setup boilerplate.
+
 | Test Class | # | What It Tests |
 |---|---|---|
 | DtoMapperTests | 6 | Entity↔DTO mapping correctness |
@@ -251,6 +273,8 @@ Host.CreateDefaultBuilder()
 ---
 
 ## 13. C# FEATURES USED
+
+The codebase makes extensive use of modern C# features including records for immutable DTOs, switch expressions for clean branching logic, and source-generated regex for compile-time email validation. Nullable reference types are enabled project-wide, and file-scoped namespaces are used consistently across all 100+ source files.
 
 | Feature | Where | Example |
 |---|---|---|
@@ -269,6 +293,8 @@ Host.CreateDefaultBuilder()
 
 ## 14. KNOWN ISSUES & GAPS
 
+These are documented shortcomings identified during development that were deferred for later iteration. The most critical is plaintext password storage — currently passwords are compared as raw strings in `AuthenticationService.cs` with no hashing, a known security gap that needs bcrypt or Argon2 before any production deployment.
+
 | Issue | Detail |
 |---|---|
 | **Plaintext passwords** | `PasswordHash` stores raw string — no hashing/bcrypt |
@@ -281,6 +307,48 @@ Host.CreateDefaultBuilder()
 ---
 
 ## 15. FOLDER STRUCTURE — FULL MAP
+
+### Layer-by-Layer Descriptions
+
+**Instrux.Domain/Enums/** — Contains 8 enum files that define fixed sets of values used throughout the application (subjects, assessment types, attendance statuses, etc.). These ensure type safety and prevent invalid values from being used in business logic — e.g., a subject can only be one of the 9 DepEd subjects, never a random string.
+
+**Instrux.Domain/Models/** — Contains 10 entity classes (Teacher, Class, Student, Assessment, Score, AttendanceRecord, CalendarEvent, TodoItem, ContentItem, GradingConfig) that represent the core data structures. Each entity has properties matching database columns and relationships but contains no EF Core annotations — all mapping is done separately in the Infrastructure layer.
+
+**Instrux.Infrastructure/Data/** — Contains the `InstruxDbContext` (which exposes 10 DbSet properties for all entities) and the `InstruxDesignTimeDbContextFactory` (which provides a connection string for EF Core CLI commands like `dotnet ef migrations add`). This is where EF Core is configured with the SQL Server provider and where all entity configurations are loaded via `ApplyConfigurationsFromAssembly`.
+
+**Instrux.Infrastructure/Data/Configurations/** — Contains 10 Fluent API configuration files (one per entity) that define table names, column types, max lengths, precision, indexes, and foreign key relationships. Each `IEntityTypeConfiguration<T>` class keeps the mapping details separate from the entity classes themselves, following the principle of persistence ignorance.
+
+**Instrux.Infrastructure/Data/Migrations/** — Contains 3 auto-generated EF Core migration files that track database schema changes. The initial migration creates all 10 tables with their columns, constraints, and indexes; the designer and snapshot files enable EF Core to detect future schema changes for incremental migrations.
+
+**Instrux.Infrastructure/Repositories/** — Contains the generic `IRepository` interface (11 methods) and its `Repository` implementation that wraps EF Core's `DbSet<T>` API. Services depend only on the interface (not EF Core directly), making them testable with any data store and keeping EF Core dependencies contained in the Infrastructure layer.
+
+**Instrux.Services/Interfaces/** — Contains 9 service interfaces that define the application's contract layer (IAuthenticationService, IClassService, IStudentService, etc.). Each interface declares async methods with DTO parameters and return types, keeping the service contracts clean and independent of implementation details.
+
+**Instrux.Services/Implementations/** — Contains 9 concrete service classes that implement the interfaces with actual business logic. Key implementations include: `AuthenticationService` (plaintext password login/register), `GradeService` (DepEd grade computation with WW/PT/QA weighting), `TeacherService` (full account deletion cascade), and `AttendanceService` (upsert pattern for daily records).
+
+**Instrux.Services/DTOs/** — Contains 19 immutable record types that define the shape of data crossing between service and presentation layers. DTOs include input types (CreateClassDto, LoginRequestDto), output types (TeacherDto, GradeBookRowDto), and result types (AuthResultDto) — they exclude sensitive data (e.g., TeacherDto omits PasswordHash) and flatten complex relationships for UI consumption.
+
+**Instrux.Services/Mapping/** — Contains the static `DtoMapper` class with 14 bidirectional conversion methods between domain entities and DTOs. Manually written (no AutoMapper), providing compile-time safety and full control over mapping logic like excluding the password hash from TeacherDto.
+
+**Instrux.Services/Resolvers/** — Contains `GradingSystemResolver`, a thin static wrapper that delegates to `GradingConfig.FromSubject()`. Exists purely for dependency decoupling — services call the resolver instead of the domain model directly, making the grading system swappable without changing service code.
+
+**Instrux.Services/Exceptions/** — Contains `ServiceException`, a custom exception class that carries a `UserFacingMessage` property for clean error display. Service methods throw this instead of raw exceptions, and the DataService catches them to show user-friendly messages in the UI's snackbar notification.
+
+**Instrux.Application/Helpers/** — Contains 3 foundational MVVM building blocks: `ViewModelBase` (abstract class with `INotifyPropertyChanged` and `SetProperty<T>`), `RelayCommand` (ICommand for sync operations), and `RelayCommandAsync` (ICommand for async with re-entrancy guard). Every command in the app uses these — they enable CanExecute gating, error callbacks, and automatic button disabling during async operations.
+
+**Instrux.Application/Converters/** — Contains 7 `IValueConverter` implementations that transform data types for XAML binding (e.g., AttendanceStatus → color brush, bool → Visibility, hex string → SolidColorBrush). These are essential for WPF data binding since XAML can't directly render enums or booleans — they're registered in App.xaml and available app-wide.
+
+**Instrux.Application/Services/** — Contains 3 application-level singleton services: `DataService` (central reactive hub with 8 ObservableCollections, wrapping all service calls), `SessionService` (holds current teacher identity and auth state), and `NotificationService` (wraps MaterialDesign SnackbarMessageQueue for toast notifications). DataService is the most critical — it acts as a mediator between ViewModels and service layer, translating DTOs to domain objects for observable collection binding.
+
+**Instrux.Application/ViewModels/** — Contains 13 ViewModel classes that implement the entire UI logic through bindable properties and commands. The largest is `ClassesViewModel` (553 lines) managing roster, attendance, grades, and content tabs; others handle authentication, dashboard stats, calendar, todos, settings, and navigation — each ViewModel corresponds to either a full page or a reusable component.
+
+**Instrux.Application/Views/** — Contains 6 XAML UserControl files (plus code-behind) that define the visual layout for each page: Dashboard, Classes, Calendar, Todo, Settings, and Authentication. Each View binds to its corresponding ViewModel through data templates defined in App.xaml, keeping the XAML markup free of business logic with most code-behind files containing only `InitializeComponent()`.
+
+**Instrux.Application/Resources/** — Contains 21 SVG icon files used throughout the UI for navigation items, action buttons, and status indicators. Also includes the Instrux logo and a waving hand icon used on the dashboard greeting — all rendered via SharpVectors.Wpf's `SvgViewbox` control.
+
+**Instrux.Application/ root files** — Contains the entry point files: `App.xaml` (global styles, themes, converters, data templates), `App.xaml.cs` (DI container setup, EF migration, authentication loop), `appsettings.json` (database connection string), `MainWindow.xaml/.cs` (sidebar navigation shell), and `AuthenticationWindow.xaml/.cs` (login/register dialog). The startup flow is: build host → migrate DB → show auth window → on success, load data → show main window → loop on sign-out.
+
+**Instrux.Tests/** — Contains 8 xUnit test classes with 52 total tests and a shared `InMemoryDbContextFactory` helper. Tests cover all 9 services and the domain mapper, using EF Core InMemory provider for isolated, fast integration tests that validate CRUD operations, cascade deletes, grade computation (82% benchmark), and teacher data isolation.
 
 ```
 Instrux/
